@@ -1,0 +1,19 @@
+name: CI
+
+on: [push]
+
+jobs:
+  test:
+
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        pg-version: ['15']
+
+    steps:
+    - uses: actions/checkout@v3
+    - uses: cachix/install-nix-action@v18
+      with:
+        nix_path: nixpkgs=channel:nixos-unstable
+    - name: Run tests pg_${{ matrix.postgres-version }}
+      run: nix-shell --run "with-pg-${{ matrix.pg-version }} make installcheck"

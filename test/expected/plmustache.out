@@ -1,0 +1,164 @@
+create extension if not exists plmustache;
+\echo
+
+create or replace function hello() returns text as
+$$Hello, you$$
+language plmustache;
+\echo
+
+select hello();
+   hello    
+------------
+ Hello, you
+(1 row)
+
+create or replace function hello(x1 text) returns text as
+$$Hello, {{x1}}$$
+language plmustache;
+\echo
+
+select hello('world');
+    hello     
+--------------
+ Hello, world
+(1 row)
+
+create or replace function hello(x1 text, x2 text) returns text as
+$$Hello, {{x1}} and {{x2}}$$
+language plmustache;
+\echo
+
+select hello('Jane', 'John');
+        hello         
+----------------------
+ Hello, Jane and John
+(1 row)
+
+create or replace function hello(x1 int, x2 float, x3 json) returns text as
+$$Hello, {{x1}}, {{x2}} and {{x3}}$$
+language plmustache;
+\echo
+
+select hello(1, 3.40, '{"abc": "xyz"}');
+              hello               
+----------------------------------
+ Hello, 1, 3.4 and {"abc": "xyz"}
+(1 row)
+
+create or replace function hello_not_found_key(x1 int) returns text as
+$$Hello, {{not_found}}$$
+language plmustache;
+\echo
+
+select hello_not_found_key(1);
+ hello_not_found_key 
+---------------------
+ Hello, 
+(1 row)
+
+-- surrounding newlines are stripped, but not inside newlines
+create or replace function haiku(x1 text, x2 text, x3 text) returns text as $$
+{{x1}}
+{{x2}}
+{{x3}}
+$$
+language plmustache;
+\echo
+
+select haiku('The earth shakes', 'just enough', 'to remind us');
+      haiku       
+------------------
+ The earth shakes+
+ just enough     +
+ to remind us
+(1 row)
+
+DO language plmustache $$ Hello $$;
+ERROR:  plmustache doesn't allow DO blocks
+\echo
+
+create or replace function hello(p point) returns text as $$
+Hello, {{p}}
+$$ language plmustache;
+\echo
+
+select hello(point(3,4));
+    hello     
+--------------
+ Hello, (3,4)
+(1 row)
+
+create function hello_no_ret_text(x text) returns int as $$
+Hello, {{x}}
+$$ language plmustache;
+ERROR:  plmustache functions can only return the text type or a domain based on the text type
+\echo
+
+create function hello_no_ret_text(x text) returns float as $$
+Hello, {{x}}
+$$ language plmustache;
+ERROR:  plmustache functions can only return the text type or a domain based on the text type
+\echo
+
+create function hello_no_ret_text(x text) returns trigger as $$
+Hello, {{x}}
+$$ language plmustache;
+ERROR:  plmustache functions can only return the text type or a domain based on the text type
+\echo
+
+create function hello_no_ret_text(x text) returns event_trigger as $$
+Hello, {{x}}
+$$ language plmustache;
+ERROR:  plmustache functions can only return the text type or a domain based on the text type
+\echo
+
+create function hello_out(out x line) as $$
+Hello, {{x}}
+$$ language plmustache;
+ERROR:  plmustache can only have IN parameters
+\echo
+
+create function hello_inout(inout x line) as $$
+Hello, {{x}}
+$$ language plmustache;
+ERROR:  plmustache can only have IN parameters
+\echo
+
+create function hello_nonnamed_param(text) returns text as $$
+Hello, {{x}}
+$$ language plmustache;
+ERROR:  plmustache can only have named parameters
+\echo
+
+create function hello_nonnamed_param(x text, text) returns text as $$
+Hello, {{x}}
+$$ language plmustache;
+ERROR:  plmustache can only have named parameters
+\echo
+
+create function hello_nonnamed_param(text, y text) returns text as $$
+Hello, {{x}}
+$$ language plmustache;
+ERROR:  plmustache can only have named parameters
+\echo
+
+create domain "text/plain" as text;
+create or replace function hi() returns "text/plain" as
+$$Hi, you$$
+language plmustache;
+\echo
+
+-- validation happens even at runtime in case check_function_bodies is turned off
+set check_function_bodies to off;
+\echo
+
+create function hello_invalid(text) returns int as $$
+Hello, {{x}}
+$$ language plmustache;
+\echo
+
+select hello_invalid('foo');
+ERROR:  plmustache functions can only return the text type or a domain based on the text type
+\echo
+
+set check_function_bodies to on;
