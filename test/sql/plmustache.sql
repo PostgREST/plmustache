@@ -57,6 +57,13 @@ $$ language plmustache;
 
 select hello(point(3,4));
 
+create or replace function hello(x int[]) returns text as $$
+Hello, {{x}}
+$$ language plmustache;
+\echo
+
+select hello(ARRAY[1,2,3]);
+
 create function hello_no_ret_text(x text) returns int as $$
 Hello, {{x}}
 $$ language plmustache;

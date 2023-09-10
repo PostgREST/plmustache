@@ -88,6 +88,17 @@ select hello(point(3,4));
  Hello, (3,4)
 (1 row)
 
+create or replace function hello(x int[]) returns text as $$
+Hello, {{x}}
+$$ language plmustache;
+\echo
+
+select hello(ARRAY[1,2,3]);
+     hello      
+----------------
+ Hello, {1,2,3}
+(1 row)
+
 create function hello_no_ret_text(x text) returns int as $$
 Hello, {{x}}
 $$ language plmustache;
