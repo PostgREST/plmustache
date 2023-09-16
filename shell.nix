@@ -8,8 +8,8 @@ mkShell {
     let
       extensionName = "plmustache";
       supportedPgVersions = [ postgresql_15 ];
-      mustache-c = callPackage ./nix/mustache-c.nix {};
-      pgWExtension = { postgresql }: postgresql.withPackages (p: [ (callPackage ./nix/pgExtension.nix { inherit postgresql extensionName mustache-c; }) ]);
+      mustach    = callPackage ./nix/mustach.nix {};
+      pgWExtension = { postgresql }: postgresql.withPackages (p: [ (callPackage ./nix/pgExtension.nix { inherit postgresql extensionName mustach; }) ]);
       extAll = map (x: callPackage ./nix/pgScript.nix { postgresql = pgWExtension { postgresql = x;}; }) supportedPgVersions;
     in
     extAll;

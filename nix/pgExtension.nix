@@ -1,9 +1,9 @@
-{ stdenv, postgresql, mustache-c, extensionName }:
+{ stdenv, postgresql, mustach, extensionName }:
 
 stdenv.mkDerivation {
   name = extensionName;
 
-  buildInputs = [ postgresql mustache-c ];
+  buildInputs = [ postgresql mustach ];
 
   src = ../.;
 
