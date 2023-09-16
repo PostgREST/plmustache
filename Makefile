@@ -10,7 +10,7 @@ REGRESS = $(patsubst test/sql/%.sql,%,$(TESTS))
 REGRESS_OPTS = --inputdir=test
 
 PG_CONFIG = pg_config
-SHLIB_LINK = -lmustache_c
+SHLIB_LINK = -lmustach
 
 PG_CFLAGS = -std=c99 -Wall -Werror -Wshadow
 

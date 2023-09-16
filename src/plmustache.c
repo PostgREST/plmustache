@@ -10,7 +10,9 @@
 #include <catalog/pg_proc.h>
 #include <catalog/pg_type.h>
 
-#include <mustache.h>
+#include <mustach/mustach.h>
+
+#include <errno.h>
 
 PG_MODULE_MAGIC;
 
@@ -20,8 +22,6 @@ typedef struct {
 } plmustache_param;
 
 typedef struct {
-	char   *string;
-	size_t offset;
 	size_t num_params;
 	plmustache_param *params;
 } plmustache_ctx;
@@ -34,73 +34,35 @@ typedef struct {
 	char** argnames;
 } plmustache_call_info;
 
-static void*
-plmustache_calloc(size_t num, size_t size)
-{
-	return palloc0(num*size);
+// TODO these are used to handle sections, they're mandatory otherwise mustach segfaults
+static int
+plmustache_enter(void *closure, const char *value){
+	return MUSTACH_OK;
 }
 
-static void *
-plmustache_realloc(void *dst, size_t size)
-{
-	if (dst && size)
-		return repalloc(dst, size);
-	else if (size)
-		return palloc(size);
-	else
-		return dst;
+static int plmustache_next(void *closure){
+	return MUSTACH_OK;
 }
 
-static void
-plmustache_error(mustache_api_t *api, void *data,
-               size_t line, char const *error)
-{
-	ereport(ERROR, errmsg("error in template: %zu: %s", line, error));
+static int
+plmustache_leave(void *closure){
+	return MUSTACH_OK;
 }
 
-static size_t
-plmustache_strread(mustache_api_t *api, void *userdata, char *buffer, size_t buffer_size){
-	char           *string;
-	size_t         string_len;
-	plmustache_ctx *ctx = (plmustache_ctx *)userdata;
-
-	string     = ctx->string + ctx->offset;
-	string_len = strlen(string);
-	string_len = (string_len < buffer_size) ? string_len : buffer_size;
-
-	memcpy(buffer, string, string_len);
-
-	ctx->offset += string_len;
-	return string_len;
-}
-
-static size_t
-plmustache_strwrite(mustache_api_t *api, void *userdata, char const *buffer, size_t buffer_size){
-	plmustache_ctx *ctx = (plmustache_ctx *)userdata;
-
-	ctx->string = plmustache_realloc(ctx->string, ctx->offset + buffer_size + 1);
-
-	memcpy(ctx->string + ctx->offset, buffer, buffer_size);
-	ctx->string[ctx->offset + buffer_size] = '\0';
-
-	ctx->offset += buffer_size;
-	return buffer_size;
-}
-
-static size_t
-plmustache_varget(mustache_api_t *api, void *userdata, mustache_token_variable_t *token){
+// handles mustache variables
+static int
+plmustache_get(void *userdata, const char *name, struct mustach_sbuf *sbuf){
 	plmustache_ctx *ctx = (plmustache_ctx *)userdata;
 
 	for(size_t i = 0; i < ctx->num_params; i++){
 		plmustache_param* prm = &ctx->params[i];
 
-		if(strcmp(prm->prm_name, token->text) == 0){
-			char *val = prm->prm_value;
-			return api->write(api, userdata, val, strlen(val));
+		if(strcmp(prm->prm_name, name) == 0){
+			sbuf->value = prm->prm_value;
 		}
 	}
 
-	return 0; // error
+	return MUSTACH_OK;
 }
 
 static char *
@@ -174,56 +136,52 @@ validate_build_call_info(Oid function_oid, FunctionCallInfo fcinfo){
 	return call_info;
 }
 
-
 PG_FUNCTION_INFO_V1(plmustache_handler);
 Datum plmustache_handler(PG_FUNCTION_ARGS)
 {
 	Oid function_oid = fcinfo->flinfo->fn_oid;
 	plmustache_call_info call_info;
-	char* src;
-
-	mustache_template_t *template = NULL;
-	mustache_api_t api = {
-		.read         = &plmustache_strread,
-		.write        = &plmustache_strwrite,
-		.varget       = &plmustache_varget,
-		.error        = &plmustache_error,
+	char *template;
+	char *result;
+	int mustach_code;
+	size_t result_size;
+	struct mustach_itf itf = {
+		.enter  = plmustache_enter,
+		.next   = plmustache_next,
+		.leave  = plmustache_leave,
+		.get    = plmustache_get,
 	};
-	plmustache_ctx  dststr = { NULL, 0, 0, NULL };
 
 	call_info = validate_build_call_info(function_oid, fcinfo);
 
-	mustache_memory_setup(palloc, plmustache_realloc, plmustache_calloc, pfree);
-
-	src = TextDatumGetCString(DirectFunctionCall2(btrim, call_info.prosrc, CStringGetTextDatum("\n")));
+	template = TextDatumGetCString(DirectFunctionCall2(btrim, call_info.prosrc, CStringGetTextDatum("\n")));
 
 	if(call_info.numargs > 0){
 		plmustache_param *params = palloc0(sizeof(plmustache_param) * call_info.numargs);
-		plmustache_ctx srcstr = { src, 0, 0, NULL };
+		plmustache_ctx ctx = { call_info.numargs, params };
 
 		for(size_t i = 0; i < call_info.numargs; i++){
 			params[i].prm_name = call_info.argnames[i];
 			params[i].prm_value = datum_to_cstring(fcinfo->args[i].value, call_info.argtypes[i]);
 		}
 
-		dststr.num_params = call_info.numargs;
-		dststr.params = params;
-
-		template = mustache_compile(&api, &srcstr);
-
-		mustache_render(&api, &dststr, template);
+		mustach_code = mustach_mem(template, 0, &itf, &ctx, 0, &result, &result_size);
 	} else {
-		plmustache_ctx srcstr = { src, 0, 0, NULL };
-
-		template = mustache_compile(&api, &srcstr);
-		mustache_render(&api, &dststr, template);
+		mustach_code = mustach_mem(template, 0, &itf, NULL, 0, &result, &result_size);
 	}
 
-	mustache_free(&api, template);
+	if(mustach_code < 0){
+  	/*mustach.h says that mustache_mem will return -1 with errno set in case of system error*/
+		int save_errno = errno;
+		ereport(ERROR,
+				/*TODO give a more descriptive error, there are different negative codes on mustach.h*/
+				errdetail("plmustache internal code: %d", mustach_code),
+				errmsg("plmustache template processing failed: %s", strerror(save_errno)));
+	}
 
 	ReleaseSysCache(call_info.proc_tuple);
 
-	PG_RETURN_TEXT_P(cstring_to_text(dststr.string));
+	PG_RETURN_TEXT_P(cstring_to_text(result));
 }
 
 PG_FUNCTION_INFO_V1(plmustache_inline_handler);
