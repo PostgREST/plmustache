@@ -64,6 +64,12 @@ $$ language plmustache;
 
 select hello(ARRAY[1,2,3]);
 
+create or replace function hello_w_comment(x text) returns text as $$
+Hello,{{! ignore me }} {{x}}
+$$ language plmustache;
+
+select hello_w_comment('ignored');
+
 create function hello_no_ret_text(x text) returns int as $$
 Hello, {{x}}
 $$ language plmustache;
