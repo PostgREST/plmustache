@@ -99,6 +99,15 @@ select hello(ARRAY[1,2,3]);
  Hello, {1,2,3}
 (1 row)
 
+create or replace function hello_w_comment(x text) returns text as $$
+Hello,{{! ignore me }} {{x}}
+$$ language plmustache;
+select hello_w_comment('ignored');
+ hello_w_comment 
+-----------------
+ Hello, ignored
+(1 row)
+
 create function hello_no_ret_text(x text) returns int as $$
 Hello, {{x}}
 $$ language plmustache;
