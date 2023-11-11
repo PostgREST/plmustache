@@ -68,17 +68,13 @@ plmustache_get(void *userdata, const char *name, struct mustach_sbuf *sbuf){
 static char *
 datum_to_cstring(Datum datum, Oid typeoid)
 {
-	HeapTuple typetuple;
-	Form_pg_type pg_type_entry;
-	Datum ret;
-
-	typetuple = SearchSysCache(TYPEOID, ObjectIdGetDatum(typeoid), 0, 0, 0);
+	HeapTuple typetuple = SearchSysCache(TYPEOID, ObjectIdGetDatum(typeoid), 0, 0, 0);
 	if (!HeapTupleIsValid(typetuple))
 		elog(ERROR, "could not find type with oid %u", typeoid);
 
-	pg_type_entry = (Form_pg_type) GETSTRUCT(typetuple);
+	Form_pg_type pg_type_entry = (Form_pg_type) GETSTRUCT(typetuple);
 
-	ret = OidFunctionCall1(pg_type_entry->typoutput, datum);
+	Datum ret = OidFunctionCall1(pg_type_entry->typoutput, datum);
 
 	ReleaseSysCache(typetuple);
 
@@ -87,29 +83,21 @@ datum_to_cstring(Datum datum, Oid typeoid)
 
 static plmustache_call_info
 validate_build_call_info(Oid function_oid, FunctionCallInfo fcinfo){
-	HeapTuple proc_tuple;
-	Oid prorettype;
-	Datum prosrc;
-	bool is_null;
-	int numargs;
-	Oid* argtypes;
-	char** argnames;
-	char* argmodes;
-	plmustache_call_info call_info;
-
-	proc_tuple = SearchSysCache(PROCOID, ObjectIdGetDatum(function_oid), 0, 0, 0);
+	HeapTuple proc_tuple = SearchSysCache(PROCOID, ObjectIdGetDatum(function_oid), 0, 0, 0);
 	if (!HeapTupleIsValid(proc_tuple))
 		elog(ERROR, "could not find function with oid %u", function_oid);
 
-	prorettype = SysCacheGetAttr(PROCOID, proc_tuple, Anum_pg_proc_prorettype, &is_null);
+	bool is_null;
+	Oid prorettype = SysCacheGetAttr(PROCOID, proc_tuple, Anum_pg_proc_prorettype, &is_null);
 	if(is_null)
 			ereport(ERROR, errmsg("pg_proc.prorettype is NULL"));
 
-	prosrc = SysCacheGetAttr(PROCOID, proc_tuple, Anum_pg_proc_prosrc, &is_null);
+	Datum prosrc = SysCacheGetAttr(PROCOID, proc_tuple, Anum_pg_proc_prosrc, &is_null);
 	if(is_null)
 		ereport(ERROR, errmsg("pg_proc.prosrc is NULL"));
 
-	numargs = get_func_arg_info(proc_tuple, &argtypes, &argnames, &argmodes);
+	Oid* argtypes; char** argnames; char* argmodes;
+	int numargs = get_func_arg_info(proc_tuple, &argtypes, &argnames, &argmodes);
 
 	if(argmodes) // argmodes is non-NULL when any of the parameters are OUT or INOUT
 		ereport(ERROR, errmsg("plmustache can only have IN parameters"));
@@ -127,24 +115,23 @@ validate_build_call_info(Oid function_oid, FunctionCallInfo fcinfo){
 			ereport(ERROR, errmsg("plmustache can only have named parameters"));
 	}
 
-	call_info.proc_tuple = proc_tuple;
-	call_info.prosrc = prosrc;
-	call_info.numargs = numargs;
-	call_info.argtypes = argtypes;
-	call_info.argnames = argnames;
-
-	return call_info;
+	return (plmustache_call_info)
+	{ proc_tuple
+	, prosrc
+	, numargs
+	, argtypes
+	, argnames
+	};
 }
 
 PG_FUNCTION_INFO_V1(plmustache_handler);
 Datum plmustache_handler(PG_FUNCTION_ARGS)
 {
 	Oid function_oid = fcinfo->flinfo->fn_oid;
-	plmustache_call_info call_info;
-	char *template;
-	char *result;
+
+	char *mustache_result;
 	int mustach_code;
-	size_t result_size;
+	size_t mustache_result_size;
 	struct mustach_itf itf = {
 		.enter  = plmustache_enter,
 		.next   = plmustache_next,
@@ -152,9 +139,9 @@ Datum plmustache_handler(PG_FUNCTION_ARGS)
 		.get    = plmustache_get,
 	};
 
-	call_info = validate_build_call_info(function_oid, fcinfo);
+	plmustache_call_info call_info = validate_build_call_info(function_oid, fcinfo);
 
-	template = TextDatumGetCString(DirectFunctionCall2(btrim, call_info.prosrc, CStringGetTextDatum("\n")));
+	char *template = TextDatumGetCString(DirectFunctionCall2(btrim, call_info.prosrc, CStringGetTextDatum("\n")));
 
 	if(call_info.numargs > 0){
 		plmustache_param *params = palloc0(sizeof(plmustache_param) * call_info.numargs);
@@ -165,13 +152,13 @@ Datum plmustache_handler(PG_FUNCTION_ARGS)
 			params[i].prm_value = datum_to_cstring(fcinfo->args[i].value, call_info.argtypes[i]);
 		}
 
-		mustach_code = mustach_mem(template, 0, &itf, &ctx, 0, &result, &result_size);
+		mustach_code = mustach_mem(template, 0, &itf, &ctx, 0, &mustache_result, &mustache_result_size);
 	} else {
-		mustach_code = mustach_mem(template, 0, &itf, NULL, 0, &result, &result_size);
+		mustach_code = mustach_mem(template, 0, &itf, NULL, 0, &mustache_result, &mustache_result_size);
 	}
 
 	if(mustach_code < 0){
-  	/*mustach.h says that mustache_mem will return -1 with errno set in case of system error*/
+		/*mustach.h says that mustache_mem will return -1 with errno set in case of system error*/
 		int save_errno = errno;
 		ereport(ERROR,
 				/*TODO give a more descriptive error, there are different negative codes on mustach.h*/
@@ -181,7 +168,7 @@ Datum plmustache_handler(PG_FUNCTION_ARGS)
 
 	ReleaseSysCache(call_info.proc_tuple);
 
-	PG_RETURN_TEXT_P(cstring_to_text(result));
+	PG_RETURN_TEXT_P(cstring_to_text(mustache_result));
 }
 
 PG_FUNCTION_INFO_V1(plmustache_inline_handler);
@@ -195,7 +182,6 @@ PG_FUNCTION_INFO_V1(plmustache_validator);
 Datum plmustache_validator(PG_FUNCTION_ARGS)
 {
 	Oid function_oid = PG_GETARG_OID(0);
-	plmustache_call_info call_info;
 
 	if (!CheckFunctionValidatorAccess(fcinfo->flinfo->fn_oid, function_oid))
 			PG_RETURN_VOID();
@@ -203,7 +189,7 @@ Datum plmustache_validator(PG_FUNCTION_ARGS)
 	if (!check_function_bodies)
 			PG_RETURN_VOID();
 
-	call_info = validate_build_call_info(function_oid, fcinfo);
+	plmustache_call_info call_info = validate_build_call_info(function_oid, fcinfo);
 
 	ReleaseSysCache(call_info.proc_tuple);
 
