@@ -17,8 +17,9 @@
 PG_MODULE_MAGIC;
 
 typedef struct {
-	char   *prm_name;
-	char   *prm_value;
+	char *prm_name;
+	char *prm_value;
+	bool enters_section;
 } plmustache_param;
 
 typedef struct {
@@ -34,12 +35,22 @@ typedef struct {
 	char** argnames;
 } plmustache_call_info;
 
-// TODO these are used to handle sections, they're mandatory otherwise mustach segfaults
 static int
-plmustache_enter(void *closure, const char *value){
-	return MUSTACH_OK;
+plmustache_enter_section(void *userdata, const char *name){
+	plmustache_ctx *ctx = (plmustache_ctx *)userdata;
+
+	for(size_t i = 0; i < ctx->num_params; i++){
+		plmustache_param* prm = &ctx->params[i];
+
+		if(strcmp(prm->prm_name, name) == 0){
+			return prm->enters_section;
+		}
+	}
+
+	return 0;
 }
 
+// TODO these are used to handle sections, they're mandatory otherwise mustach segfaults
 static int plmustache_next(void *closure){
 	return MUSTACH_OK;
 }
@@ -49,9 +60,8 @@ plmustache_leave(void *closure){
 	return MUSTACH_OK;
 }
 
-// handles mustache variables
 static int
-plmustache_get(void *userdata, const char *name, struct mustach_sbuf *sbuf){
+plmustache_get_variable(void *userdata, const char *name, struct mustach_sbuf *sbuf){
 	plmustache_ctx *ctx = (plmustache_ctx *)userdata;
 
 	for(size_t i = 0; i < ctx->num_params; i++){
@@ -133,10 +143,10 @@ Datum plmustache_handler(PG_FUNCTION_ARGS)
 	int mustach_code;
 	size_t mustache_result_size;
 	struct mustach_itf itf = {
-		.enter  = plmustache_enter,
+		.enter  = plmustache_enter_section,
 		.next   = plmustache_next,
 		.leave  = plmustache_leave,
-		.get    = plmustache_get,
+		.get    = plmustache_get_variable,
 	};
 
 	plmustache_call_info call_info = validate_build_call_info(function_oid, fcinfo);
@@ -149,7 +159,17 @@ Datum plmustache_handler(PG_FUNCTION_ARGS)
 
 		for(size_t i = 0; i < call_info.numargs; i++){
 			params[i].prm_name = call_info.argnames[i];
-			params[i].prm_value = datum_to_cstring(fcinfo->args[i].value, call_info.argtypes[i]);
+			NullableDatum arg = fcinfo->args[i];
+			if(arg.isnull){
+				params[i].prm_value = NULL;
+				params[i].enters_section = false;
+			}else{
+				params[i].prm_value = datum_to_cstring(arg.value, call_info.argtypes[i]);
+				if(call_info.argtypes[i] == BOOLOID)
+					params[i].enters_section = DatumGetBool(arg.value);
+				else
+					params[i].enters_section = true;
+			}
 		}
 
 		mustach_code = mustach_mem(template, 0, &itf, &ctx, 0, &mustache_result, &mustache_result_size);
