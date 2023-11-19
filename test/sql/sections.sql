@@ -38,7 +38,15 @@ select foo_test(false);
 create or replace function foo_null_test(foo bool) returns text as $$
 foo is {{#foo}}full{{/foo}}{{^foo}}null{{/foo}}
 $$ language plmustache;
+\echo
 
 select foo_null_test(null);
 
 select foo_null_test(true);
+
+create or replace function foo_array(arr text[]) returns text as $$
+foo is {{#arr}}{{.}}, {{/arr}}
+$$ language plmustache;
+\echo
+
+select foo_array(ARRAY['one', 'two', 'three']);
