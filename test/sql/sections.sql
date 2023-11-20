@@ -50,3 +50,24 @@ $$ language plmustache;
 \echo
 
 select foo_array(ARRAY['one', 'two', 'three']);
+
+create or replace function foo_array(arr int[]) returns text as $$
+foo is {{#arr}}{{.}}, {{/arr}}
+$$ language plmustache;
+\echo
+
+select foo_array(ARRAY[1, 2, 3]::int[]);
+
+create or replace function mixed_var_array(var int, arr int[]) returns text as $$
+bar is {{var}}, foo is {{#arr}}{{.}}, {{/arr}}
+$$ language plmustache;
+\echo
+
+select mixed_var_array(4, ARRAY[1, 2, 3]::int[]);
+
+create or replace function mixed_array_var(arr int[], var int) returns text as $$
+foo is {{#arr}}{{.}}, {{/arr}} bar is {{var}}
+$$ language plmustache;
+\echo
+
+select mixed_array_var(ARRAY[1, 2, 3]::int[], 4);
