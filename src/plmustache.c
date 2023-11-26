@@ -212,6 +212,7 @@ Datum plmustache_handler(PG_FUNCTION_ARGS)
       NullableDatum arg = fcinfo->args[i];
       Oid arg_type = call_info.argtypes[i];
       Oid array_elem_type = get_element_type(arg_type);
+      bool arg_is_array = array_elem_type != InvalidOid;
 
       if(arg.isnull){
         params[i].prm_value = NULL;
@@ -225,22 +226,22 @@ Datum plmustache_handler(PG_FUNCTION_ARGS)
         else
           params[i].enters_section = true;
 
-        params[i].is_array = array_elem_type != InvalidOid;
-
-        if(params[i].is_array){
-          int j = 0;
-          Datum value;
-          bool isnull;
+        if(arg_is_array){
+          params[i].is_array = true;
           ArrayType *array = DatumGetArrayTypeP(arg.value);
           ArrayIterator array_iterator = array_create_iterator(array, 0, NULL);
-          int num = ArrayGetNItems(ARR_NDIM(array), ARR_DIMS(array));
-          params[i].prm_arr_length = num;
-          params[i].prm_arr = palloc0(sizeof(char*) * num);
+          int arr_length = ArrayGetNItems(ARR_NDIM(array), ARR_DIMS(array));
+          if(arr_length > 0){
+            Datum value; bool isnull; int j = 0;
+            params[i].prm_arr_length = arr_length;
+            params[i].prm_arr = palloc0(sizeof(char*) * arr_length);
 
-          while (array_iterate(array_iterator, &value, &isnull)) {
-            params[i].prm_arr[j] = isnull? NULL : datum_to_cstring(value, array_elem_type);
-            j++;
-          }
+            while (array_iterate(array_iterator, &value, &isnull)) {
+              params[i].prm_arr[j] = isnull? NULL : datum_to_cstring(value, array_elem_type);
+              j++;
+            }
+          } else
+            params[i].enters_section = false;
         }
 
       }
