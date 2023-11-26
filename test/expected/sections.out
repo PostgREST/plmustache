@@ -145,3 +145,20 @@ select mixed_array_var_array(ARRAY[1, 2, 3], 'something', ARRAY[4, 5, 6]);
  arr2 is 4, 5, 6,  var is something
 (1 row)
 
+create or replace function nested_array(arr int[]) returns text as $$
+arr is {{#arr}}{{.}}, {{/arr}}
+$$ language plmustache;
+\echo
+
+select nested_array(ARRAY[[1,2,3], [4,5,6]]);
+       nested_array        
+---------------------------
+ arr is 1, 2, 3, 4, 5, 6, 
+(1 row)
+
+select nested_array(ARRAY[[[1,2], [3,4]], [[5,6], [7,8]]]);
+          nested_array           
+---------------------------------
+ arr is 1, 2, 3, 4, 5, 6, 7, 8, 
+(1 row)
+

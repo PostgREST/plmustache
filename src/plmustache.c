@@ -231,6 +231,7 @@ Datum plmustache_handler(PG_FUNCTION_ARGS)
           ArrayType *array = DatumGetArrayTypeP(arg.value);
           ArrayIterator array_iterator = array_create_iterator(array, 0, NULL);
           int arr_length = ArrayGetNItems(ARR_NDIM(array), ARR_DIMS(array));
+
           if(arr_length > 0){
             Datum value; bool isnull; int j = 0;
             params[i].prm_arr_length = arr_length;

@@ -82,3 +82,12 @@ $$ language plmustache;
 \echo
 
 select mixed_array_var_array(ARRAY[1, 2, 3], 'something', ARRAY[4, 5, 6]);
+
+create or replace function nested_array(arr int[]) returns text as $$
+arr is {{#arr}}{{.}}, {{/arr}}
+$$ language plmustache;
+\echo
+
+select nested_array(ARRAY[[1,2,3], [4,5,6]]);
+
+select nested_array(ARRAY[[[1,2], [3,4]], [[5,6], [7,8]]]);
