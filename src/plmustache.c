@@ -50,6 +50,7 @@ typedef struct {
 
 static int
 plmustache_section_enter(void *userdata, const char *name){
+  elog(DEBUG2, "plmustache_section_enter");
   plmustache_ctx *ctx = (plmustache_ctx *)userdata;
 
   for(size_t i = 0; i < ctx->num_params; i++){
@@ -73,6 +74,7 @@ static int plmustache_section_next(void *userdata){
 
 static int
 plmustache_section_leave(void *userdata){
+  elog(DEBUG2, "plmustache_section_leave");
   plmustache_ctx *ctx = (plmustache_ctx *)userdata;
   ctx->section_key = NULL;
   ctx->section_idx = 0;
@@ -82,6 +84,7 @@ plmustache_section_leave(void *userdata){
 
 static int
 plmustache_get_variable(void *userdata, const char *name, struct mustach_sbuf *sbuf){
+  elog(DEBUG2, "plmustache_get_variable");
   plmustache_ctx *ctx = (plmustache_ctx *)userdata;
 
   if (strcmp(name, IMPLICIT_ITERATOR) == 0){
@@ -230,7 +233,10 @@ Datum plmustache_handler(PG_FUNCTION_ARGS)
           params[i].is_array = true;
           ArrayType *array = DatumGetArrayTypeP(arg.value);
           ArrayIterator array_iterator = array_create_iterator(array, 0, NULL);
-          int arr_length = ArrayGetNItems(ARR_NDIM(array), ARR_DIMS(array));
+          int arr_ndim = ARR_NDIM(array);
+          int arr_length = ArrayGetNItems(arr_ndim, ARR_DIMS(array));
+          if(arr_ndim > 1)
+            ereport(ERROR, errmsg("support for multidimensional arrays is not implemented"));
 
           if(arr_length > 0){
             Datum value; bool isnull; int j = 0;

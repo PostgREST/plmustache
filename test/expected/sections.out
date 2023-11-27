@@ -151,14 +151,6 @@ $$ language plmustache;
 \echo
 
 select nested_array(ARRAY[[1,2,3], [4,5,6]]);
-       nested_array        
----------------------------
- arr is 1, 2, 3, 4, 5, 6, 
-(1 row)
-
+ERROR:  support for multidimensional arrays is not implemented
 select nested_array(ARRAY[[[1,2], [3,4]], [[5,6], [7,8]]]);
-          nested_array           
----------------------------------
- arr is 1, 2, 3, 4, 5, 6, 7, 8, 
-(1 row)
-
+ERROR:  support for multidimensional arrays is not implemented
