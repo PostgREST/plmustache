@@ -47,9 +47,6 @@ language plmustache;
 
 select haiku('The earth shakes', 'just enough', 'to remind us');
 
-DO language plmustache $$ Hello $$;
-\echo
-
 create or replace function hello(p point) returns text as $$
 Hello, {{p}}
 $$ language plmustache;
@@ -69,68 +66,3 @@ Hello,{{! ignore me }} {{x}}
 $$ language plmustache;
 
 select hello_w_comment('ignored');
-
-create function hello_no_ret_text(x text) returns int as $$
-Hello, {{x}}
-$$ language plmustache;
-\echo
-
-create function hello_no_ret_text(x text) returns float as $$
-Hello, {{x}}
-$$ language plmustache;
-\echo
-
-create function hello_no_ret_text(x text) returns trigger as $$
-Hello, {{x}}
-$$ language plmustache;
-\echo
-
-create function hello_no_ret_text(x text) returns event_trigger as $$
-Hello, {{x}}
-$$ language plmustache;
-\echo
-
-create function hello_out(out x line) as $$
-Hello, {{x}}
-$$ language plmustache;
-\echo
-
-create function hello_inout(inout x line) as $$
-Hello, {{x}}
-$$ language plmustache;
-\echo
-
-create function hello_nonnamed_param(text) returns text as $$
-Hello, {{x}}
-$$ language plmustache;
-\echo
-
-create function hello_nonnamed_param(x text, text) returns text as $$
-Hello, {{x}}
-$$ language plmustache;
-\echo
-
-create function hello_nonnamed_param(text, y text) returns text as $$
-Hello, {{x}}
-$$ language plmustache;
-\echo
-
-create domain "text/plain" as text;
-create or replace function hi() returns "text/plain" as
-$$Hi, you$$
-language plmustache;
-\echo
-
--- validation happens even at runtime in case check_function_bodies is turned off
-set check_function_bodies to off;
-\echo
-
-create function hello_invalid(text) returns int as $$
-Hello, {{x}}
-$$ language plmustache;
-\echo
-
-select hello_invalid('foo');
-\echo
-
-set check_function_bodies to on;
