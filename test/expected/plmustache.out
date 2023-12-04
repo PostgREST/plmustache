@@ -1,4 +1,5 @@
 create extension if not exists plmustache;
+NOTICE:  extension "plmustache" already exists, skipping
 \echo
 
 create or replace function hello() returns text as
