@@ -1,6 +1,6 @@
 name: CI
 
-on: [push]
+on: [push, pull_request]
 
 jobs:
   test:
@@ -8,12 +8,14 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        pg-version: ['15']
+        pg-version: ['12', '13', '14', '15', '16']
 
     steps:
-    - uses: actions/checkout@v3
-    - uses: cachix/install-nix-action@v18
-      with:
-        nix_path: nixpkgs=channel:nixos-unstable
-    - name: Run tests pg_${{ matrix.postgres-version }}
-      run: nix-shell --run "with-pg-${{ matrix.pg-version }} make installcheck"
+      - uses: actions/checkout@v3
+      - uses: cachix/install-nix-action@v18
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+      - name: Run tests
+        run: nix-shell --run "with-pg-${{ matrix.pg-version }} make installcheck"
+      - if: ${{ failure() }}
+        run: cat output/regression.diffs

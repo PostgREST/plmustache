@@ -9,10 +9,9 @@
 #include <funcapi.h>
 #include <catalog/pg_proc.h>
 #include <catalog/pg_type.h>
+#include <access/htup_details.h>
 
 #include <mustach/mustach.h>
-
-#include <errno.h>
 
 PG_MODULE_MAGIC;
 
