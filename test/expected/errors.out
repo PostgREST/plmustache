@@ -97,3 +97,15 @@ ERROR:  plmustache functions can only return the text type or a domain based on 
 \echo
 
 set check_function_bodies to on;
+\echo
+
+create or replace function iterator_name_disallowed_1("." int) returns text as $$
+Hello
+$$ language plmustache;
+ERROR:  parameters cannot be named the same as the implicit iterator '.'
+\echo
+
+create or replace function iterator_name_disallowed_2(a text, "." int) returns text as $$
+Hello
+$$ language plmustache;
+ERROR:  parameters cannot be named the same as the implicit iterator '.'

@@ -84,3 +84,13 @@ select hello_invalid('foo');
 \echo
 
 set check_function_bodies to on;
+\echo
+
+create or replace function iterator_name_disallowed_1("." int) returns text as $$
+Hello
+$$ language plmustache;
+\echo
+
+create or replace function iterator_name_disallowed_2(a text, "." int) returns text as $$
+Hello
+$$ language plmustache;

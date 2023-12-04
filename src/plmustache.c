@@ -16,6 +16,8 @@
 
 PG_MODULE_MAGIC;
 
+#define IMPLICIT_ITERATOR "."
+
 typedef struct {
   char buf[20];
 } mustach_error_msg;
@@ -96,7 +98,7 @@ datum_to_cstring(Datum datum, Oid typeoid)
 }
 
 static plmustache_call_info
-validate_build_call_info(Oid function_oid, FunctionCallInfo fcinfo){
+build_call_info(Oid function_oid, FunctionCallInfo fcinfo){
   HeapTuple proc_tuple = SearchSysCache(PROCOID, ObjectIdGetDatum(function_oid), 0, 0, 0);
   if (!HeapTupleIsValid(proc_tuple))
     elog(ERROR, "could not find function with oid %u", function_oid);
@@ -127,6 +129,8 @@ validate_build_call_info(Oid function_oid, FunctionCallInfo fcinfo){
   for(size_t i = 0; i < numargs; i++){
     if (strlen(argnames[i]) == 0)
       ereport(ERROR, errmsg("plmustache can only have named parameters"));
+    if (strcmp(argnames[i], IMPLICIT_ITERATOR) == 0)
+      ereport(ERROR, errmsg("parameters cannot be named the same as the implicit iterator '%s'", IMPLICIT_ITERATOR));
   }
 
   return (plmustache_call_info)
@@ -171,7 +175,7 @@ Datum plmustache_handler(PG_FUNCTION_ARGS)
     .get    = plmustache_get_variable,
   };
 
-  plmustache_call_info call_info = validate_build_call_info(function_oid, fcinfo);
+  plmustache_call_info call_info = build_call_info(function_oid, fcinfo);
 
   char *template = TextDatumGetCString(DirectFunctionCall2(btrim, call_info.prosrc, CStringGetTextDatum("\n")));
 
@@ -228,7 +232,7 @@ Datum plmustache_validator(PG_FUNCTION_ARGS)
   if (!check_function_bodies)
       PG_RETURN_VOID();
 
-  plmustache_call_info call_info = validate_build_call_info(function_oid, fcinfo);
+  plmustache_call_info call_info = build_call_info(function_oid, fcinfo);
 
   ReleaseSysCache(call_info.proc_tuple);
 
