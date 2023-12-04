@@ -17,6 +17,10 @@
 PG_MODULE_MAGIC;
 
 typedef struct {
+  char buf[20];
+} mustach_error_msg;
+
+typedef struct {
   char *prm_name;
   char *prm_value;
   bool enters_section;
@@ -134,6 +138,24 @@ validate_build_call_info(Oid function_oid, FunctionCallInfo fcinfo){
   };
 }
 
+static mustach_error_msg get_mustach_error_msg(int mustach_code){
+  switch(mustach_code){
+    case MUSTACH_ERROR_SYSTEM           : return (mustach_error_msg){"system error"};
+    case MUSTACH_ERROR_UNEXPECTED_END   : return (mustach_error_msg){"unexpected end"};
+    case MUSTACH_ERROR_EMPTY_TAG        : return (mustach_error_msg){"empty tag"};
+    case MUSTACH_ERROR_TAG_TOO_LONG     : return (mustach_error_msg){"tag is too long"};
+    case MUSTACH_ERROR_BAD_SEPARATORS   : return (mustach_error_msg){"bad separators"};
+    case MUSTACH_ERROR_TOO_DEEP         : return (mustach_error_msg){"bad separators"};
+    case MUSTACH_ERROR_CLOSING          : return (mustach_error_msg){"closing"};
+    case MUSTACH_ERROR_BAD_UNESCAPE_TAG : return (mustach_error_msg){"bad unescape tag"};
+    case MUSTACH_ERROR_INVALID_ITF      : return (mustach_error_msg){"invalid itf"};
+    case MUSTACH_ERROR_ITEM_NOT_FOUND   : return (mustach_error_msg){"item not found"};
+    case MUSTACH_ERROR_PARTIAL_NOT_FOUND: return (mustach_error_msg){"partial not found"};
+    case MUSTACH_ERROR_UNDEFINED_TAG    : return (mustach_error_msg){"undefined tag"};
+    default                             : return (mustach_error_msg){"unknown"};
+  }
+}
+
 PG_FUNCTION_INFO_V1(plmustache_handler);
 Datum plmustache_handler(PG_FUNCTION_ARGS)
 {
@@ -178,12 +200,9 @@ Datum plmustache_handler(PG_FUNCTION_ARGS)
   }
 
   if(mustach_code < 0){
-    /*mustach.h says that mustache_mem will return -1 with errno set in case of system error*/
-    int save_errno = errno;
     ereport(ERROR,
-        /*TODO give a more descriptive error, there are different negative codes on mustach.h*/
-        errdetail("plmustache internal code: %d", mustach_code),
-        errmsg("plmustache template processing failed: %s", strerror(save_errno)));
+      errmsg("plmustache template processing failed: %s", get_mustach_error_msg(mustach_code).buf)
+    );
   }
 
   ReleaseSysCache(call_info.proc_tuple);
