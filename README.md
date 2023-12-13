@@ -16,6 +16,8 @@ Logic-less templates for Postgres. Tested on Postgres 12, 13, 14, 15, 16.
 
 ### Variables
 
+Variables are handled as per the [mustache spec](https://mustache.github.io/mustache.5.html), a `{{key}}` variable will be interpolated.
+
 ```sql
 create or replace function win_money(you text, qt money, at timestamptz) returns text as $$
 Hello {{you}}!
@@ -27,6 +29,32 @@ select win_money('Slonik', '12000', now());
 -----------------------------------------------------------
  Hello Slonik!                                            +
  You just won $12,000.00 at 2023-12-04 07:44:26.915735-05.
+(1 row)
+```
+
+#### Escaped and Unescaped
+
+A double mustache `{{key}}` will be escaped and a triple mustache `{{{key}}}` will not be escaped.
+
+```sql
+create or replace function escape_me(tag text) returns text as $$
+{{tag}}
+$$ language plmustache;
+
+select escape_me('<script>evil()</script>');
+              escape_me
+-------------------------------------
+ &lt;script&gt;evil()&lt;/script&gt;
+(1 row)
+
+create or replace function do_not_escape_me(tag text) returns text as $$
+{{{tag}}}
+$$ language plmustache;
+
+select do_not_escape_me('<script>evil()</script>');
+    do_not_escape_me
+-------------------------
+ <script>evil()</script>
 (1 row)
 ```
 

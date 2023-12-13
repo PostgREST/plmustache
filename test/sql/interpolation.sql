@@ -66,3 +66,15 @@ Hello,{{! ignore me }} {{x}}
 $$ language plmustache;
 
 select hello_w_comment('ignored');
+
+create or replace function escape_me(tag text) returns text as $$
+{{tag}}
+$$ language plmustache;
+
+select escape_me('<script>evil()</script>');
+
+create or replace function do_not_escape_me(tag text) returns text as $$
+{{{tag}}}
+$$ language plmustache;
+
+select do_not_escape_me('<script>evil()</script>');
