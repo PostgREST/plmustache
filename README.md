@@ -1,10 +1,10 @@
 # plmustache
 
-Logic-less templates for Postgres. Tested on Postgres 12, 13, 14, 15, 16.
+A PostgreSQL extension that provides a language handler for [Mustache](https://mustache.github.io/) templates.
 
 ## Roadmap
 
-- [x] interpolation
+- [x] variable interpolation
 - [x] sections
   - [x] bools
   - [ ] arrays
@@ -92,6 +92,8 @@ Install https://gitlab.com/jobol/mustach, then on this repo:
 ```
 $ make && make install
 ```
+
+Tested on Postgres 12, 13, 14, 15, 16.
 
 ## Development
 
