@@ -1,0 +1,2 @@
+default_version = '@EXTVERSION@'
+relocatable = false
