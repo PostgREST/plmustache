@@ -19,6 +19,14 @@ PGXS := $(shell $(PG_CONFIG) --pgxs)
 
 all: sql/$(EXTENSION)--$(EXTVERSION).sql $(EXTENSION).control
 
+.PHONY: clean_generated
+clean_generated:
+	rm -f $(EXTENSION).control
+	rm -f sql/$(EXTENSION)--$(EXTVERSION).sql
+
+# extra dep for clean target in pgxs.mk
+clean: clean_generated
+
 sql/$(EXTENSION)--$(EXTVERSION).sql: sql/$(EXTENSION).sql
 	cp $< $@
 
