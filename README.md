@@ -87,13 +87,35 @@ select show_cat('Mr. Sleepy', false);
 
 ## Installation
 
-Install https://gitlab.com/jobol/mustach, then on this repo:
+Clone the repo and submodules:
 
 ```
-$ make && make install
+git clone --recurse-submodules https://github.com/PostgREST/plmustache
 ```
 
-Tested on Postgres 12, 13, 14, 15, 16.
+Build mustach:
+
+```
+cd mustach
+make && sudo make install
+sudo ldconfig
+```
+
+Build plmustache:
+
+```
+cd ..
+
+make && sudo make install
+```
+
+Then on SQL you can do:
+
+```sql
+CREATE EXTENSION plmustache;
+```
+
+plmustache is tested on Postgres 12, 13, 14, 15, 16.
 
 ## Development
 
