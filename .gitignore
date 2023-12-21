@@ -2,3 +2,5 @@
 *.lex.c
 results/
 .history
+*.so
+*.bc
