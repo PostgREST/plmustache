@@ -6,6 +6,7 @@
 
 #include <utils/syscache.h>
 #include <utils/lsyscache.h>
+#include <utils/fmgroids.h>
 #include <funcapi.h>
 #include <catalog/pg_proc.h>
 #include <catalog/pg_type.h>
@@ -22,14 +23,20 @@ typedef struct {
 } mustach_error_msg;
 
 typedef struct {
-  char *prm_name;
-  char *prm_value;
-  bool enters_section;
+  char   *prm_name;
+  char   *prm_value;
+  char   **prm_arr;
+  size_t prm_arr_length;
+  bool   enters_section;
+  bool   is_array;
 } plmustache_param;
 
 typedef struct {
   size_t num_params;
   plmustache_param *params;
+  char   *section_key;
+  size_t section_idx;
+  size_t section_arr_length;
 } plmustache_ctx;
 
 typedef struct {
@@ -41,13 +48,17 @@ typedef struct {
 } plmustache_call_info;
 
 static int
-plmustache_enter_section(void *userdata, const char *name){
+plmustache_section_enter(void *userdata, const char *name){
+  elog(DEBUG2, "plmustache_section_enter");
   plmustache_ctx *ctx = (plmustache_ctx *)userdata;
 
   for(size_t i = 0; i < ctx->num_params; i++){
     plmustache_param* prm = &ctx->params[i];
 
     if(strcmp(prm->prm_name, name) == 0){
+      ctx->section_key        = prm->prm_name;
+      ctx->section_arr_length = prm->is_array? prm->prm_arr_length : 0;
+      ctx->section_idx        = 0;
       return prm->enters_section;
     }
   }
@@ -55,24 +66,40 @@ plmustache_enter_section(void *userdata, const char *name){
   return 0;
 }
 
-// TODO these are used to handle sections, they're mandatory otherwise mustach segfaults
-static int plmustache_next(void *closure){
-  return MUSTACH_OK;
+static int plmustache_section_next(void *userdata){
+  plmustache_ctx *ctx = (plmustache_ctx *)userdata;
+  return ctx->section_idx < ctx->section_arr_length;
 }
 
 static int
-plmustache_leave(void *closure){
+plmustache_section_leave(void *userdata){
+  elog(DEBUG2, "plmustache_section_leave");
+  plmustache_ctx *ctx = (plmustache_ctx *)userdata;
+  ctx->section_key = NULL;
+  ctx->section_idx = 0;
+  ctx->section_arr_length = 0;
   return MUSTACH_OK;
 }
 
 static int
 plmustache_get_variable(void *userdata, const char *name, struct mustach_sbuf *sbuf){
+  elog(DEBUG2, "plmustache_get_variable");
   plmustache_ctx *ctx = (plmustache_ctx *)userdata;
 
-  for(size_t i = 0; i < ctx->num_params; i++){
+  if (strcmp(name, IMPLICIT_ITERATOR) == 0){
+    for(size_t i = 0; i < ctx->num_params; i++){
+        plmustache_param* prm = &ctx->params[i];
+
+        if(strcmp(prm->prm_name,ctx->section_key) == 0){
+          sbuf->value = prm->prm_arr[ctx->section_idx];
+        }
+    }
+    ctx->section_idx = ctx->section_idx + 1;
+  }
+  else for(size_t i = 0; i < ctx->num_params; i++){
     plmustache_param* prm = &ctx->params[i];
 
-    if(strcmp(prm->prm_name, name) == 0){
+    if(strcmp(name, prm->prm_name) == 0){
       sbuf->value = prm->prm_value;
     }
   }
@@ -168,9 +195,9 @@ Datum plmustache_handler(PG_FUNCTION_ARGS)
   int mustach_code;
   size_t mustache_result_size;
   struct mustach_itf itf = {
-    .enter  = plmustache_enter_section,
-    .next   = plmustache_next,
-    .leave  = plmustache_leave,
+    .enter  = plmustache_section_enter,
+    .next   = plmustache_section_next,
+    .leave  = plmustache_section_leave,
     .get    = plmustache_get_variable,
   };
 
@@ -180,20 +207,49 @@ Datum plmustache_handler(PG_FUNCTION_ARGS)
 
   if(call_info.numargs > 0){
     plmustache_param *params = palloc0(sizeof(plmustache_param) * call_info.numargs);
-    plmustache_ctx ctx = { call_info.numargs, params };
+    plmustache_ctx ctx = { call_info.numargs, params, NULL, 0 };
 
     for(size_t i = 0; i < call_info.numargs; i++){
       params[i].prm_name = call_info.argnames[i];
       NullableDatum arg = fcinfo->args[i];
+      Oid arg_type = call_info.argtypes[i];
+      Oid array_elem_type = get_element_type(arg_type);
+      bool arg_is_array = array_elem_type != InvalidOid;
+
       if(arg.isnull){
         params[i].prm_value = NULL;
         params[i].enters_section = false;
+        params[i].is_array = false;
       }else{
-        params[i].prm_value = datum_to_cstring(arg.value, call_info.argtypes[i]);
-        if(call_info.argtypes[i] == BOOLOID)
+        params[i].prm_value = datum_to_cstring(arg.value, arg_type);
+
+        if(arg_type == BOOLOID)
           params[i].enters_section = DatumGetBool(arg.value);
         else
           params[i].enters_section = true;
+
+        if(arg_is_array){
+          params[i].is_array = true;
+          ArrayType *array = DatumGetArrayTypeP(arg.value);
+          ArrayIterator array_iterator = array_create_iterator(array, 0, NULL);
+          int arr_ndim = ARR_NDIM(array);
+          int arr_length = ArrayGetNItems(arr_ndim, ARR_DIMS(array));
+          if(arr_ndim > 1)
+            ereport(ERROR, errmsg("support for multidimensional arrays is not implemented"));
+
+          if(arr_length > 0){
+            Datum value; bool isnull; int j = 0;
+            params[i].prm_arr_length = arr_length;
+            params[i].prm_arr = palloc0(sizeof(char*) * arr_length);
+
+            while (array_iterate(array_iterator, &value, &isnull)) {
+              params[i].prm_arr[j] = isnull? NULL : datum_to_cstring(value, array_elem_type);
+              j++;
+            }
+          } else
+            params[i].enters_section = false;
+        }
+
       }
     }
 
