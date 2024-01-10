@@ -1,6 +1,6 @@
 # plmustache
 
-A PostgreSQL extension that provides a language handler for [Mustache](https://mustache.github.io/) templates.
+A PostgreSQL extension that provides a language handler for [Mustache](https://mustache.github.io/) templates using https://gitlab.com/jobol/mustach.
 
 ## Roadmap
 
