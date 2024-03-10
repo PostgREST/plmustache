@@ -148,7 +148,7 @@ static mustach_error_msg get_mustach_error_msg(int mustach_code){
     case MUSTACH_ERROR_EMPTY_TAG        : return (mustach_error_msg){"empty tag"};
     case MUSTACH_ERROR_TAG_TOO_LONG     : return (mustach_error_msg){"tag is too long"};
     case MUSTACH_ERROR_BAD_SEPARATORS   : return (mustach_error_msg){"bad separators"};
-    case MUSTACH_ERROR_TOO_DEEP         : return (mustach_error_msg){"bad separators"};
+    case MUSTACH_ERROR_TOO_DEEP         : return (mustach_error_msg){"too deep"};
     case MUSTACH_ERROR_CLOSING          : return (mustach_error_msg){"closing"};
     case MUSTACH_ERROR_BAD_UNESCAPE_TAG : return (mustach_error_msg){"bad unescape tag"};
     case MUSTACH_ERROR_INVALID_ITF      : return (mustach_error_msg){"invalid itf"};
