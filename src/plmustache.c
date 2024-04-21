@@ -13,13 +13,11 @@
 
 #include <mustach/mustach.h>
 
+#include "observation.h"
+
 PG_MODULE_MAGIC;
 
-#define IMPLICIT_ITERATOR "."
-
-typedef struct {
-  char buf[20];
-} mustach_error_msg;
+const char IMPLICIT_ITERATOR = '.';
 
 typedef struct {
   char *prm_name;
@@ -81,11 +79,11 @@ plmustache_get_variable(void *userdata, const char *name, struct mustach_sbuf *s
 }
 
 static char *
-datum_to_cstring(Datum datum, Oid typeoid)
+datum_to_cstring(Datum datum, Oid typeoid, plmustache_obs_handler observer)
 {
   HeapTuple typetuple = SearchSysCache(TYPEOID, ObjectIdGetDatum(typeoid), 0, 0, 0);
   if (!HeapTupleIsValid(typetuple))
-    elog(ERROR, "could not find type with oid %u", typeoid);
+    observer((plmustache_observation){ERROR_NO_TYPE_OID, .error_type_oid = typeoid});
 
   Form_pg_type pg_type_entry = (Form_pg_type) GETSTRUCT(typetuple);
 
@@ -97,39 +95,39 @@ datum_to_cstring(Datum datum, Oid typeoid)
 }
 
 static plmustache_call_info
-build_call_info(Oid function_oid, FunctionCallInfo fcinfo){
+build_call_info(Oid function_oid, FunctionCallInfo fcinfo, plmustache_obs_handler observer){
   HeapTuple proc_tuple = SearchSysCache(PROCOID, ObjectIdGetDatum(function_oid), 0, 0, 0);
   if (!HeapTupleIsValid(proc_tuple))
-    elog(ERROR, "could not find function with oid %u", function_oid);
+    observer((plmustache_observation){ERROR_NO_OID, .error_function_oid = function_oid});
 
   bool is_null;
   Oid prorettype = SysCacheGetAttr(PROCOID, proc_tuple, Anum_pg_proc_prorettype, &is_null);
   if(is_null)
-      ereport(ERROR, errmsg("pg_proc.prorettype is NULL"));
+    observer((plmustache_observation){ERROR_NO_RETTYPE});
 
   Datum prosrc = SysCacheGetAttr(PROCOID, proc_tuple, Anum_pg_proc_prosrc, &is_null);
   if(is_null)
-    ereport(ERROR, errmsg("pg_proc.prosrc is NULL"));
+    observer((plmustache_observation){ERROR_NO_SRC});
 
   Oid* argtypes; char** argnames; char* argmodes;
   int numargs = get_func_arg_info(proc_tuple, &argtypes, &argnames, &argmodes);
 
   if(argmodes) // argmodes is non-NULL when any of the parameters are OUT or INOUT
-    ereport(ERROR, errmsg("plmustache can only have IN parameters"));
+    observer((plmustache_observation){ERROR_NOT_ONLY_IN_PARAMS});
 
   // This already prevents functions from being used as triggers.
   // So it's not necessary to use CALLED_AS_TRIGGER and CALLED_AS_EVENT_TRIGGER
   if(getBaseType(prorettype) != TEXTOID)
-      ereport(ERROR, errmsg("plmustache functions can only return the text type or a domain based on the text type"));
+    observer((plmustache_observation){ERROR_NO_TEXT_RET});
 
   // when having a single unnamed parameter, the argnames are NULL
   if (!argnames && numargs == 1)
-    ereport(ERROR, errmsg("plmustache can only have named parameters"));
+    observer((plmustache_observation){ERROR_UNNAMED_PARAMS});
   for(size_t i = 0; i < numargs; i++){
     if (strlen(argnames[i]) == 0)
-      ereport(ERROR, errmsg("plmustache can only have named parameters"));
-    if (strcmp(argnames[i], IMPLICIT_ITERATOR) == 0)
-      ereport(ERROR, errmsg("parameters cannot be named the same as the implicit iterator '%s'", IMPLICIT_ITERATOR));
+      observer((plmustache_observation){ERROR_UNNAMED_PARAMS});
+    if (argnames[i][0] == IMPLICIT_ITERATOR)
+      observer((plmustache_observation){ERROR_PARAM_IMPLICIT_ITERATOR, .error_implicit_iterator = IMPLICIT_ITERATOR});
   }
 
   return (plmustache_call_info)
@@ -139,24 +137,6 @@ build_call_info(Oid function_oid, FunctionCallInfo fcinfo){
   , argtypes
   , argnames
   };
-}
-
-static mustach_error_msg get_mustach_error_msg(int mustach_code){
-  switch(mustach_code){
-    case MUSTACH_ERROR_SYSTEM           : return (mustach_error_msg){"system error"};
-    case MUSTACH_ERROR_UNEXPECTED_END   : return (mustach_error_msg){"unexpected end"};
-    case MUSTACH_ERROR_EMPTY_TAG        : return (mustach_error_msg){"empty tag"};
-    case MUSTACH_ERROR_TAG_TOO_LONG     : return (mustach_error_msg){"tag is too long"};
-    case MUSTACH_ERROR_BAD_SEPARATORS   : return (mustach_error_msg){"bad separators"};
-    case MUSTACH_ERROR_TOO_DEEP         : return (mustach_error_msg){"too deep"};
-    case MUSTACH_ERROR_CLOSING          : return (mustach_error_msg){"closing"};
-    case MUSTACH_ERROR_BAD_UNESCAPE_TAG : return (mustach_error_msg){"bad unescape tag"};
-    case MUSTACH_ERROR_INVALID_ITF      : return (mustach_error_msg){"invalid itf"};
-    case MUSTACH_ERROR_ITEM_NOT_FOUND   : return (mustach_error_msg){"item not found"};
-    case MUSTACH_ERROR_PARTIAL_NOT_FOUND: return (mustach_error_msg){"partial not found"};
-    case MUSTACH_ERROR_UNDEFINED_TAG    : return (mustach_error_msg){"undefined tag"};
-    default                             : return (mustach_error_msg){"unknown"};
-  }
 }
 
 PG_FUNCTION_INFO_V1(plmustache_handler);
@@ -174,7 +154,7 @@ Datum plmustache_handler(PG_FUNCTION_ARGS)
     .get    = plmustache_get_variable,
   };
 
-  plmustache_call_info call_info = build_call_info(function_oid, fcinfo);
+  plmustache_call_info call_info = build_call_info(function_oid, fcinfo, ereporter);
 
   char *template = TextDatumGetCString(DirectFunctionCall2(btrim, call_info.prosrc, CStringGetTextDatum("\n")));
 
@@ -189,7 +169,7 @@ Datum plmustache_handler(PG_FUNCTION_ARGS)
         params[i].prm_value = NULL;
         params[i].enters_section = false;
       }else{
-        params[i].prm_value = datum_to_cstring(arg.value, call_info.argtypes[i]);
+        params[i].prm_value = datum_to_cstring(arg.value, call_info.argtypes[i], ereporter);
         if(call_info.argtypes[i] == BOOLOID)
           params[i].enters_section = DatumGetBool(arg.value);
         else
@@ -203,9 +183,7 @@ Datum plmustache_handler(PG_FUNCTION_ARGS)
   }
 
   if(mustach_code < 0){
-    ereport(ERROR,
-      errmsg("plmustache template processing failed: %s", get_mustach_error_msg(mustach_code).buf)
-    );
+    ereporter((plmustache_observation){ERROR_MUSTACH, .error_mustach_code = mustach_code});
   }
 
   ReleaseSysCache(call_info.proc_tuple);
@@ -216,7 +194,7 @@ Datum plmustache_handler(PG_FUNCTION_ARGS)
 PG_FUNCTION_INFO_V1(plmustache_inline_handler);
 Datum plmustache_inline_handler(PG_FUNCTION_ARGS)
 {
-  ereport(ERROR, errmsg("plmustache doesn't allow DO blocks"));
+  ereporter((plmustache_observation){ERROR_NO_DO_BLOCKS});
   PG_RETURN_VOID();
 }
 
@@ -231,7 +209,7 @@ Datum plmustache_validator(PG_FUNCTION_ARGS)
   if (!check_function_bodies)
       PG_RETURN_VOID();
 
-  plmustache_call_info call_info = build_call_info(function_oid, fcinfo);
+  plmustache_call_info call_info = build_call_info(function_oid, fcinfo, ereporter);
 
   ReleaseSysCache(call_info.proc_tuple);
 
