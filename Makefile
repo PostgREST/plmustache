@@ -4,7 +4,7 @@ EXTVERSION = 0.1
 DATA = $(wildcard sql/*--*.sql)
 
 MODULE_big = $(EXTENSION)
-OBJS = src/plmustache.o src/observation.o
+OBJS = src/plmustache.o src/observation.o src/build.o
 
 TESTS = $(wildcard test/sql/*.sql)
 REGRESS = $(patsubst test/sql/%.sql,%,$(TESTS))
