@@ -24,10 +24,10 @@ Hello {{you}}!
 You just won {{qt}} at {{at}}.
 $$ language plmustache;
 
-select win_money('Slonik', '12000', now());
+select win_money('Sir Meowalot', '12000', now());
                          win_money
 -----------------------------------------------------------
- Hello Slonik!                                            +
+ Hello Sir Meowalot!                                            +
  You just won $12,000.00 at 2023-12-04 07:44:26.915735-05.
 (1 row)
 ```
@@ -60,6 +60,8 @@ select do_not_escape_me('<script>evil()</script>');
 
 ### Sections
 
+Boolean sections:
+
 ```sql
 create or replace function show_cat(cat text, show bool default true) returns text as $$
 {{#show}}
@@ -82,6 +84,21 @@ select show_cat('Mr. Sleepy', false);
 -----------------------------
  A mysterious cat is hiding.+
 
+(1 row)
+```
+
+Array iterators:
+
+```sql
+create or replace function hello_cats(cats text[]) returns text as $$
+Say hello to: {{#cats}}{{.}}, {{/cats}}
+$$ language plmustache;
+
+
+postgres=# select hello_cats('{Sir Meowalot, Mr. Sleepy, Paquito}');
+                    hello_cats
+---------------------------------------------------
+ Say hello to: Sir Meowalot, Mr. Sleepy, Paquito,
 (1 row)
 ```
 
