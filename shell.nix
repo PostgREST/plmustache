@@ -1,7 +1,7 @@
 with import (builtins.fetchTarball {
-  name = "2023-09-16";
-  url = "https://github.com/NixOS/nixpkgs/archive/ae5b96f3ab6aabb60809ab78c2c99f8dd51ee678.tar.gz";
-  sha256 = "11fpdcj5xrmmngq0z8gsc3axambqzvyqkfk23jn3qkx9a5x56xxk";
+  name = "24.05";
+  url = "https://github.com/NixOS/nixpkgs/archive/refs/tags/24.05.tar.gz";
+  sha256 = "sha256:1lr1h35prqkd1mkmzriwlpvxcb34kmhc9dnr48gkm8hh089hifmx";
 }) {};
 mkShell {
   buildInputs =
