@@ -5,3 +5,5 @@ results/
 *.so
 *.bc
 tags
+plmustache.control
+sql/plmustache--*.sql

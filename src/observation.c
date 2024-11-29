@@ -3,25 +3,21 @@
 
 #include "observation.h"
 
-typedef struct {
-  char buf[20];
-} mustach_error_msg;
-
-static mustach_error_msg get_mustach_error_msg(int mustach_code){
+static const char *mustach_strerror(int mustach_code){
   switch(mustach_code){
-    case MUSTACH_ERROR_SYSTEM           : return (mustach_error_msg){"system error"};
-    case MUSTACH_ERROR_UNEXPECTED_END   : return (mustach_error_msg){"unexpected end"};
-    case MUSTACH_ERROR_EMPTY_TAG        : return (mustach_error_msg){"empty tag"};
-    case MUSTACH_ERROR_TAG_TOO_LONG     : return (mustach_error_msg){"tag is too long"};
-    case MUSTACH_ERROR_BAD_SEPARATORS   : return (mustach_error_msg){"bad separators"};
-    case MUSTACH_ERROR_TOO_DEEP         : return (mustach_error_msg){"too deep"};
-    case MUSTACH_ERROR_CLOSING          : return (mustach_error_msg){"closing"};
-    case MUSTACH_ERROR_BAD_UNESCAPE_TAG : return (mustach_error_msg){"bad unescape tag"};
-    case MUSTACH_ERROR_INVALID_ITF      : return (mustach_error_msg){"invalid itf"};
-    case MUSTACH_ERROR_ITEM_NOT_FOUND   : return (mustach_error_msg){"item not found"};
-    case MUSTACH_ERROR_PARTIAL_NOT_FOUND: return (mustach_error_msg){"partial not found"};
-    case MUSTACH_ERROR_UNDEFINED_TAG    : return (mustach_error_msg){"undefined tag"};
-    default                             : return (mustach_error_msg){"unknown"};
+    case MUSTACH_ERROR_SYSTEM           : return "system error";
+    case MUSTACH_ERROR_UNEXPECTED_END   : return "unexpected end";
+    case MUSTACH_ERROR_EMPTY_TAG        : return "empty tag";
+    case MUSTACH_ERROR_TAG_TOO_LONG     : return "tag is too long";
+    case MUSTACH_ERROR_BAD_SEPARATORS   : return "bad separators";
+    case MUSTACH_ERROR_TOO_DEEP         : return "too deep";
+    case MUSTACH_ERROR_CLOSING          : return "closing";
+    case MUSTACH_ERROR_BAD_UNESCAPE_TAG : return "bad unescape tag";
+    case MUSTACH_ERROR_INVALID_ITF      : return "invalid itf";
+    case MUSTACH_ERROR_ITEM_NOT_FOUND   : return "item not found";
+    case MUSTACH_ERROR_PARTIAL_NOT_FOUND: return "partial not found";
+    case MUSTACH_ERROR_UNDEFINED_TAG    : return "undefined tag";
+    default                             : return "unknown";
   }
 }
 
@@ -56,7 +52,7 @@ void ereporter(plmustache_observation o){
       break;
     case ERROR_MUSTACH:
       ereport(ERROR,
-        errmsg("plmustache template processing failed: %s", get_mustach_error_msg(o.error_mustach_code).buf)
+        errmsg("plmustache template processing failed: %s", mustach_strerror(o.error_mustach_code))
       );
       break;
   }
