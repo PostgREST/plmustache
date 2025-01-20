@@ -1,3 +1,4 @@
 [submodule "mustach"]
 	path = mustach
 	url = https://gitlab.com/jobol/mustach.git
+	branch = 1.2.6
