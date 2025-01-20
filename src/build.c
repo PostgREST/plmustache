@@ -75,14 +75,12 @@ plmustache_get_variable(void *userdata, const char *name, struct mustach_sbuf *s
   return MUSTACH_OK;
 }
 
-struct mustach_itf build_mustach_itf(){
-  return (struct mustach_itf)
-  { .enter  = plmustache_section_enter
-  , .next   = plmustache_section_next
-  , .leave  = plmustache_section_leave
-  , .get    = plmustache_get_variable
-  };
-}
+struct mustach_itf plmustache_mustach_itf =
+{ .enter  = plmustache_section_enter
+, .next   = plmustache_section_next
+, .leave  = plmustache_section_leave
+, .get    = plmustache_get_variable
+};
 
 static char *
 datum_to_cstring(Datum datum, Oid typeoid, plmustache_obs_handler observer)

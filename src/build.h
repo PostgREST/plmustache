@@ -31,7 +31,7 @@ typedef struct {
   char** argnames;
 } plmustache_call_info;
 
-struct mustach_itf build_mustach_itf(void);
+extern struct mustach_itf plmustache_mustach_itf;
 
 plmustache_call_info
 build_call_info(Oid function_oid, FunctionCallInfo fcinfo, plmustache_obs_handler observer);
