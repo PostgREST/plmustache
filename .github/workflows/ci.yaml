@@ -18,6 +18,8 @@ jobs:
         with:
           nix_path: nixpkgs=channel:nixos-unstable
       - name: Run tests
-        run: nix-shell --run "with-pg-${{ matrix.pg-version }} make installcheck"
+        run: nix-shell --run "nxpg-${{ matrix.pg-version }} nxpg-tmp nxpg-test"
       - if: ${{ failure() }}
-        run: cat output/regression.diffs
+        run: |
+          cat regression.out
+          cat regression.diffs

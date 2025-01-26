@@ -4,6 +4,12 @@ results/
 .history
 *.so
 *.bc
+*.gcda
+*.gcno
 tags
 plmustache.control
-sql/plmustache--*.sql
+plmustache--*.sql
+coverage.info
+coverage_html
+regression.diffs
+regression.out
