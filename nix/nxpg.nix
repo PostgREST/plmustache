@@ -1,7 +1,8 @@
-{ writeShellScriptBin, findutils, entr, callPackage, postgresql_16, postgresql_15, postgresql_14, postgresql_13, postgresql_12 } :
+{ writeShellScriptBin, findutils, entr, callPackage, postgresql_17, postgresql_16, postgresql_15, postgresql_14, postgresql_13, postgresql_12 } :
 let
   prefix = "nxpg";
   supportedPgs = [
+    postgresql_17
     postgresql_16
     postgresql_15
     postgresql_14
@@ -68,7 +69,7 @@ let
         script = ''
           set -euo pipefail
 
-          export PATH=${patchedPg}/bin:"$PATH"
+          export PATH=${patchedPg.dev}/bin:${patchedPg}/bin:"$PATH"
 
           "$@"
         '';
