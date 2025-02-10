@@ -1,4 +1,4 @@
-{ writeShellScriptBin, findutils, entr, callPackage, postgresql_17, postgresql_16, postgresql_15, postgresql_14, postgresql_13, postgresql_12 } :
+{ writeShellScriptBin, findutils, entr, callPackage, lcov, postgresql_17, postgresql_16, postgresql_15, postgresql_14, postgresql_13, postgresql_12 } :
 let
   prefix = "nxpg";
   supportedPgs = [
@@ -24,7 +24,26 @@ let
       make
       make installcheck
     '';
+  cov =
+    writeShellScriptBin "${prefix}-coverage" ''
+      set -euo pipefail
 
+      info_file="coverage.info"
+      out_dir="coverage_html"
+
+      make clean
+      make COVERAGE=1
+      make installcheck
+      ${lcov}/bin/lcov --capture --directory . --output-file "$info_file"
+
+      # remove postgres headers on the nix store, otherwise they show on the output
+      ${lcov}/bin/lcov --remove "$info_file" '/nix/*' --output-file "$info_file" || true
+
+      ${lcov}/bin/lcov --list coverage.info
+      ${lcov}/bin/genhtml "$info_file" --output-directory "$out_dir"
+
+      echo "${prefix}-coverage: To see the results, visit file://$(pwd)/$out_dir/index.html on your browser"
+    '';
   watch =
     writeShellScriptBin "${prefix}-watch" ''
       set -euo pipefail
@@ -80,6 +99,7 @@ in
 [
   build
   test
+  cov
   watch
   tmpDb
   allPgPaths

@@ -12,6 +12,9 @@ SRC = $(wildcard src/*.c)
 OBJS = $(patsubst src/%.c, src/%.o, $(SRC))
 SHLIB_LINK = -lmustach
 PG_CFLAGS = -std=c99 -Wno-declaration-after-statement -Wall -Werror -Wshadow
+ifeq ($(COVERAGE), 1)
+PG_CFLAGS += --coverage
+endif
 
 TESTS = $(wildcard test/sql/*.sql)
 REGRESS = $(patsubst test/sql/%.sql,%,$(TESTS))
