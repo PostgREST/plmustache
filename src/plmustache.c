@@ -10,15 +10,13 @@ PG_FUNCTION_INFO_V1(plmustache_handler);
 Datum plmustache_handler(PG_FUNCTION_ARGS) {
   Oid function_oid = fcinfo->flinfo->fn_oid;
 
-  char  *mustache_result;
-  int    mustach_code;
-  size_t mustache_result_size;
-
   plmustache_call_info call_info = build_call_info(function_oid, fcinfo, ereporter);
 
   plmustache_ctx ctx = build_mustache_ctx(call_info, fcinfo->args);
 
-  mustach_code = mustach_mem(ctx.template, 0, &plmustache_mustach_itf, &ctx, 0, &mustache_result, &mustache_result_size);
+  char  *mustache_result;
+  size_t mustache_result_size;
+  int    mustach_code = mustach_mem(ctx.template, 0, &plmustache_mustach_itf, &ctx, 0, &mustache_result, &mustache_result_size);
 
   if (mustach_code < 0) {
     ereporter((plmustache_observation){ERROR_MUSTACH, .error_mustach_code = mustach_code});
