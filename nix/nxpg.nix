@@ -1,4 +1,4 @@
-{ writeShellScriptBin, findutils, entr, callPackage, lcov, postgresql_17, postgresql_16, postgresql_15, postgresql_14, postgresql_13, postgresql_12 } :
+{ writeShellScriptBin, findutils, entr, callPackage, lcov, clang-tools, git, postgresql_17, postgresql_16, postgresql_15, postgresql_14, postgresql_13, postgresql_12 } :
 let
   prefix = "nxpg";
   supportedPgs = [
@@ -43,6 +43,16 @@ let
       ${lcov}/bin/genhtml "$info_file" --output-directory "$out_dir"
 
       echo "${prefix}-coverage: To see the results, visit file://$(pwd)/$out_dir/index.html on your browser"
+    '';
+  style =
+    writeShellScriptBin "${prefix}-style" ''
+      ${clang-tools}/bin/clang-format -i src/*
+    '';
+  styleCheck =
+    writeShellScriptBin "${prefix}-style-check" ''
+      ${clang-tools}/bin/clang-format -i src/*
+
+      ${git}/bin/git diff-index --exit-code HEAD -- '*.c'
     '';
   watch =
     writeShellScriptBin "${prefix}-watch" ''
@@ -100,6 +110,8 @@ in
   build
   test
   cov
+  style
+  styleCheck
   watch
   tmpDb
   allPgPaths
