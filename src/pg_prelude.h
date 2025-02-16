@@ -13,7 +13,6 @@
 #include <access/xact.h>
 #include <access/hash.h>
 #include <access/htup_details.h>
-#include <common/jsonapi.h>
 #include <catalog/namespace.h>
 #include <catalog/pg_authid.h>
 #include <catalog/pg_proc.h>
@@ -37,7 +36,6 @@
 #include <utils/hsearch.h>
 #include <utils/json.h>
 #include <utils/jsonb.h>
-#include <utils/jsonfuncs.h>
 #include <utils/syscache.h>
 #include <utils/lsyscache.h>
 #include <utils/memutils.h>
