@@ -1,18 +1,4 @@
-#include <postgres.h>
-
-#include <tcop/utility.h>
-#include <utils/builtins.h>
-#include <utils/varlena.h>
-
-#include <utils/syscache.h>
-#include <utils/lsyscache.h>
-#include <funcapi.h>
-#include <catalog/pg_proc.h>
-#include <catalog/pg_type.h>
-#include <access/htup_details.h>
-
-#include <mustach/mustach.h>
-
+#include "pg_prelude.h"
 #include "observation.h"
 #include "build.h"
 
@@ -100,7 +86,7 @@ datum_to_cstring(Datum datum, Oid typeoid, plmustache_obs_handler observer)
 
 
 plmustache_call_info
-build_call_info(Oid function_oid, FunctionCallInfo fcinfo, plmustache_obs_handler observer){
+build_call_info(Oid function_oid, __attribute__ ((unused)) FunctionCallInfo fcinfo, plmustache_obs_handler observer){
   HeapTuple proc_tuple = SearchSysCache(PROCOID, ObjectIdGetDatum(function_oid), 0, 0, 0);
   if (!HeapTupleIsValid(proc_tuple))
     observer((plmustache_observation){ERROR_NO_OID, .error_function_oid = function_oid});
@@ -115,7 +101,7 @@ build_call_info(Oid function_oid, FunctionCallInfo fcinfo, plmustache_obs_handle
     observer((plmustache_observation){ERROR_NO_SRC});
 
   Oid* argtypes; char** argnames; char* argmodes;
-  int numargs = get_func_arg_info(proc_tuple, &argtypes, &argnames, &argmodes);
+  size_t numargs = get_func_arg_info(proc_tuple, &argtypes, &argnames, &argmodes);
 
   if(argmodes) // argmodes is non-NULL when any of the parameters are OUT or INOUT
     observer((plmustache_observation){ERROR_NOT_ONLY_IN_PARAMS});

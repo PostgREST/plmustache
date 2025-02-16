@@ -1,20 +1,8 @@
-#include <postgres.h>
-
-#include <tcop/utility.h>
-#include <utils/builtins.h>
-#include <utils/varlena.h>
-
-#include <utils/syscache.h>
-#include <utils/lsyscache.h>
-#include <funcapi.h>
-#include <catalog/pg_proc.h>
-#include <catalog/pg_type.h>
-#include <access/htup_details.h>
-
-#include <mustach/mustach.h>
-
+#include "pg_prelude.h"
 #include "observation.h"
 #include "build.h"
+
+#include <mustach/mustach.h>
 
 PG_MODULE_MAGIC;
 
@@ -45,7 +33,7 @@ Datum plmustache_handler(PG_FUNCTION_ARGS)
 }
 
 PG_FUNCTION_INFO_V1(plmustache_inline_handler);
-Datum plmustache_inline_handler(PG_FUNCTION_ARGS)
+Datum plmustache_inline_handler(__attribute__ ((unused)) PG_FUNCTION_ARGS)
 {
   ereporter((plmustache_observation){ERROR_NO_DO_BLOCKS});
   PG_RETURN_VOID();

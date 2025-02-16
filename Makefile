@@ -11,7 +11,12 @@ MODULE_big = $(EXTENSION)
 SRC = $(wildcard src/*.c)
 OBJS = $(patsubst src/%.c, src/%.o, $(SRC))
 SHLIB_LINK = -lmustach
-PG_CFLAGS = -std=c99 -Wno-declaration-after-statement -Wall -Werror -Wshadow
+
+PG_CFLAGS = -std=c11 -Wextra -Wall -Werror \
+	-Wno-declaration-after-statement \
+	-Wno-vla \
+	-Wno-long-long \
+	-Wno-missing-field-initializers
 ifeq ($(COVERAGE), 1)
 PG_CFLAGS += --coverage
 endif

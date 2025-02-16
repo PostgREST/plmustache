@@ -1,7 +1,7 @@
-#include <postgres.h>
-#include <mustach/mustach.h>
-
+#include "pg_prelude.h"
 #include "observation.h"
+
+#include <mustach/mustach.h>
 
 static const char *mustach_strerror(int mustach_code){
   switch(mustach_code){

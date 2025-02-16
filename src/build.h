@@ -26,7 +26,7 @@ typedef struct {
 typedef struct {
   HeapTuple proc_tuple;
   Datum prosrc;
-  int numargs;
+  size_t numargs;
   Oid* argtypes;
   char** argnames;
 } plmustache_call_info;
