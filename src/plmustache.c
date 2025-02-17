@@ -12,7 +12,7 @@ Datum plmustache_handler(PG_FUNCTION_ARGS) {
 
   plmustache_call_info call_info = build_call_info(function_oid, fcinfo, ereporter);
 
-  plmustache_ctx ctx = build_mustache_ctx(call_info, fcinfo->args);
+  plmustache_ctx ctx = build_mustache_ctx(call_info);
 
   char  *mustache_result;
   size_t mustache_result_size;

@@ -110,61 +110,67 @@ plmustache_call_info build_call_info(Oid function_oid, __attribute__((unused)) F
     if (argnames[i][0] == IMPLICIT_ITERATOR) observer((plmustache_observation){ERROR_PARAM_IMPLICIT_ITERATOR, .error_implicit_iterator = IMPLICIT_ITERATOR});
   }
 
-  return (plmustache_call_info){proc_tuple, prosrc, numargs, argtypes, argnames};
+  return (plmustache_call_info){proc_tuple, prosrc, numargs, argtypes, argnames, fcinfo->args};
 }
 
-plmustache_ctx build_mustache_ctx(plmustache_call_info call_info, NullableDatum args[]) {
+static plmustache_param *build_params(plmustache_call_info call_info) {
+  plmustache_param *params = palloc0(sizeof(plmustache_param) * call_info.numargs);
+
+  for (size_t i = 0; i < call_info.numargs; i++) {
+    params[i].prm_name            = call_info.argnames[i];
+    NullableDatum arg             = call_info.argvalues[i];
+    Oid           arg_type        = call_info.argtypes[i];
+    Oid           array_elem_type = get_element_type(arg_type);
+    bool          arg_is_array    = array_elem_type != InvalidOid;
+
+    if (arg.isnull) {
+      params[i].prm_value      = NULL;
+      params[i].enters_section = false;
+      params[i].is_array       = false;
+    } else {
+      params[i].prm_value = datum_to_cstring(arg.value, call_info.argtypes[i], ereporter);
+      if (arg_type == BOOLOID)
+        params[i].enters_section = DatumGetBool(arg.value);
+      else
+        params[i].enters_section = true;
+
+      if (arg_is_array) {
+        params[i].is_array           = true;
+        ArrayType    *array          = DatumGetArrayTypeP(arg.value);
+        ArrayIterator array_iterator = array_create_iterator(array, 0, NULL);
+        int           arr_ndim       = ARR_NDIM(array);
+        int           arr_length     = ArrayGetNItems(arr_ndim, ARR_DIMS(array));
+        if (arr_ndim > 1) ereport(ERROR, errmsg("support for multidimensional arrays is not implemented"));
+
+        if (arr_length > 0) {
+          Datum value;
+          bool  isnull;
+          int   j                  = 0;
+          params[i].prm_arr_length = arr_length;
+          params[i].prm_arr        = palloc0(sizeof(char *) * arr_length);
+
+          while (array_iterate(array_iterator, &value, &isnull)) {
+            params[i].prm_arr[j] = isnull ? NULL : datum_to_cstring(value, array_elem_type, ereporter);
+            j++;
+          }
+        } else
+          params[i].enters_section = false;
+      }
+    }
+  }
+
+  return params;
+}
+
+plmustache_ctx build_mustache_ctx(plmustache_call_info call_info) {
   plmustache_ctx ctx = {0};
 
+  // remove the newlines from the start and the end of the function body
   ctx.template = TextDatumGetCString(DirectFunctionCall2(btrim, call_info.prosrc, CStringGetTextDatum("\n")));
 
   if (call_info.numargs > 0) {
-    plmustache_param *params = palloc0(sizeof(plmustache_param) * call_info.numargs);
-    ctx.num_params           = call_info.numargs;
-    ctx.params               = params;
-
-    for (size_t i = 0; i < call_info.numargs; i++) {
-      params[i].prm_name            = call_info.argnames[i];
-      NullableDatum arg             = args[i];
-      Oid           arg_type        = call_info.argtypes[i];
-      Oid           array_elem_type = get_element_type(arg_type);
-      bool          arg_is_array    = array_elem_type != InvalidOid;
-
-      if (arg.isnull) {
-        params[i].prm_value      = NULL;
-        params[i].enters_section = false;
-        params[i].is_array       = false;
-      } else {
-        params[i].prm_value = datum_to_cstring(arg.value, call_info.argtypes[i], ereporter);
-        if (arg_type == BOOLOID)
-          params[i].enters_section = DatumGetBool(arg.value);
-        else
-          params[i].enters_section = true;
-
-        if (arg_is_array) {
-          params[i].is_array           = true;
-          ArrayType    *array          = DatumGetArrayTypeP(arg.value);
-          ArrayIterator array_iterator = array_create_iterator(array, 0, NULL);
-          int           arr_ndim       = ARR_NDIM(array);
-          int           arr_length     = ArrayGetNItems(arr_ndim, ARR_DIMS(array));
-          if (arr_ndim > 1) ereport(ERROR, errmsg("support for multidimensional arrays is not implemented"));
-
-          if (arr_length > 0) {
-            Datum value;
-            bool  isnull;
-            int   j                  = 0;
-            params[i].prm_arr_length = arr_length;
-            params[i].prm_arr        = palloc0(sizeof(char *) * arr_length);
-
-            while (array_iterate(array_iterator, &value, &isnull)) {
-              params[i].prm_arr[j] = isnull ? NULL : datum_to_cstring(value, array_elem_type, ereporter);
-              j++;
-            }
-          } else
-            params[i].enters_section = false;
-        }
-      }
-    }
+    ctx.num_params = call_info.numargs;
+    ctx.params     = build_params(call_info);
   }
 
   return ctx;
