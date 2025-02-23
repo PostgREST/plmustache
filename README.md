@@ -1,6 +1,6 @@
 # plmustache
 
-[![Coverage Status](https://coveralls.io/repos/github/PostgREST/plmustache/badge.svg?branch=cov)](https://coveralls.io/github/PostgREST/plmustache?branch=cov)
+[![Coverage Status](https://coveralls.io/repos/github/PostgREST/plmustache/badge.svg)](https://coveralls.io/github/PostgREST/plmustache)
 
 A PostgreSQL extension that provides a language handler for [Mustache](https://mustache.github.io/) templates using https://gitlab.com/jobol/mustach.
 

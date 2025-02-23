@@ -2,7 +2,11 @@
 #include "observation.h"
 #include "build.h"
 
-const char IMPLICIT_ITERATOR = '.';
+const char DOT = '.';
+
+static bool is_implicit_iterator(const char *str){
+  return str[0] == DOT;
+}
 
 static int plmustache_section_enter(void *userdata, const char *name) {
   plmustache_ctx *ctx = (plmustache_ctx *)userdata;
@@ -37,7 +41,7 @@ static int plmustache_section_leave(void *userdata) {
 static int plmustache_get_variable(void *userdata, const char *name, struct mustach_sbuf *sbuf) {
   plmustache_ctx *ctx = (plmustache_ctx *)userdata;
 
-  if (name[0] == IMPLICIT_ITERATOR) {
+  if (is_implicit_iterator(name)) {
     for (size_t i = 0; i < ctx->num_params; i++) {
       plmustache_param *prm = &ctx->params[i];
 
@@ -73,39 +77,6 @@ static char *datum_to_cstring(Datum datum, Oid typeoid) {
   getTypeOutputInfo(typeoid, &out_func, &is_varlena);
 
   return OidOutputFunctionCall(out_func, datum);
-}
-
-plmustache_call_info build_call_info(Oid function_oid, __attribute__((unused)) FunctionCallInfo fcinfo, plmustache_obs_handler observer) {
-  HeapTuple proc_tuple = SearchSysCache(PROCOID, ObjectIdGetDatum(function_oid), 0, 0, 0);
-  if (!HeapTupleIsValid(proc_tuple)) observer((plmustache_observation){ERROR_NO_OID, .error_function_oid = function_oid});
-
-  bool is_null;
-  Oid  prorettype = SysCacheGetAttr(PROCOID, proc_tuple, Anum_pg_proc_prorettype, &is_null);
-  if (is_null) observer((plmustache_observation){ERROR_NO_RETTYPE});
-
-  Datum prosrc = SysCacheGetAttr(PROCOID, proc_tuple, Anum_pg_proc_prosrc, &is_null);
-  if (is_null) observer((plmustache_observation){ERROR_NO_SRC});
-
-  Oid   *argtypes;
-  char **argnames;
-  char  *argmodes;
-  size_t numargs = get_func_arg_info(proc_tuple, &argtypes, &argnames, &argmodes);
-
-  if (argmodes) // argmodes is non-NULL when any of the parameters are OUT or INOUT
-    observer((plmustache_observation){ERROR_NOT_ONLY_IN_PARAMS});
-
-  // This already prevents functions from being used as triggers.
-  // So it's not necessary to use CALLED_AS_TRIGGER and CALLED_AS_EVENT_TRIGGER
-  if (getBaseType(prorettype) != TEXTOID) observer((plmustache_observation){ERROR_NO_TEXT_RET});
-
-  // when having a single unnamed parameter, the argnames are NULL
-  if (!argnames && numargs == 1) observer((plmustache_observation){ERROR_UNNAMED_PARAMS});
-  for (size_t i = 0; i < numargs; i++) {
-    if (strlen(argnames[i]) == 0) observer((plmustache_observation){ERROR_UNNAMED_PARAMS});
-    if (argnames[i][0] == IMPLICIT_ITERATOR) observer((plmustache_observation){ERROR_PARAM_IMPLICIT_ITERATOR, .error_implicit_iterator = IMPLICIT_ITERATOR});
-  }
-
-  return (plmustache_call_info){proc_tuple, prosrc, numargs, argtypes, argnames, fcinfo->args};
 }
 
 static plmustache_param *build_params(plmustache_call_info call_info, plmustache_obs_handler observer) {
@@ -176,4 +147,37 @@ plmustache_ctx free_plmustache_ctx(plmustache_ctx ctx) {
   if (ctx.tpl) pfree(ctx.tpl);
   ctx = (plmustache_ctx){0};
   return ctx;
+}
+
+plmustache_call_info build_call_info(Oid function_oid, __attribute__((unused)) FunctionCallInfo fcinfo, plmustache_obs_handler observer) {
+  HeapTuple proc_tuple = SearchSysCache(PROCOID, ObjectIdGetDatum(function_oid), 0, 0, 0);
+  if (!HeapTupleIsValid(proc_tuple)) observer((plmustache_observation){ERROR_NO_OID, .error_function_oid = function_oid});
+
+  bool is_null;
+  Oid  prorettype = SysCacheGetAttr(PROCOID, proc_tuple, Anum_pg_proc_prorettype, &is_null);
+  if (is_null) observer((plmustache_observation){ERROR_NO_RETTYPE});
+
+  Datum prosrc = SysCacheGetAttr(PROCOID, proc_tuple, Anum_pg_proc_prosrc, &is_null);
+  if (is_null) observer((plmustache_observation){ERROR_NO_SRC});
+
+  Oid   *argtypes;
+  char **argnames;
+  char  *argmodes;
+  size_t numargs = get_func_arg_info(proc_tuple, &argtypes, &argnames, &argmodes);
+
+  if (argmodes) // argmodes is non-NULL when any of the parameters are OUT or INOUT
+    observer((plmustache_observation){ERROR_NOT_ONLY_IN_PARAMS});
+
+  // This already prevents functions from being used as triggers.
+  // So it's not necessary to use CALLED_AS_TRIGGER and CALLED_AS_EVENT_TRIGGER
+  if (getBaseType(prorettype) != TEXTOID) observer((plmustache_observation){ERROR_NO_TEXT_RET});
+
+  // when having a single unnamed parameter, the argnames are NULL
+  if (!argnames && numargs == 1) observer((plmustache_observation){ERROR_UNNAMED_PARAMS});
+  for (size_t i = 0; i < numargs; i++) {
+    if (strlen(argnames[i]) == 0) observer((plmustache_observation){ERROR_UNNAMED_PARAMS});
+    if (is_implicit_iterator(argnames[i])) observer((plmustache_observation){ERROR_PARAM_IMPLICIT_ITERATOR, .error_implicit_iterator = DOT});
+  }
+
+  return (plmustache_call_info){proc_tuple, prosrc, numargs, argtypes, argnames, fcinfo->args};
 }
