@@ -36,7 +36,7 @@ extern struct mustach_itf plmustache_mustach_itf;
 
 plmustache_call_info build_call_info(Oid function_oid, FunctionCallInfo fcinfo, plmustache_obs_handler observer);
 
-plmustache_ctx build_mustache_ctx(plmustache_call_info call_info);
+plmustache_ctx build_mustache_ctx(plmustache_call_info call_info, plmustache_obs_handler observer);
 
 plmustache_ctx free_plmustache_ctx(plmustache_ctx ctx);
 

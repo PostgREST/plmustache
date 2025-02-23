@@ -12,7 +12,8 @@ typedef enum {
   ERROR_PARAM_IMPLICIT_ITERATOR,
   ERROR_NO_DO_BLOCKS,
   ERROR_NO_TYPE_OID,
-  ERROR_MUSTACH
+  ERROR_MUSTACH,
+  ERROR_NO_MULTIDIM
 
 } plmustache_observation_type;
 

@@ -57,5 +57,8 @@ void ereporter(plmustache_observation o) {
     case ERROR_MUSTACH:
       ereport(ERROR, errmsg("plmustache template processing failed: %s", mustach_strerror(o.error_mustach_code)));
       break;
+    case ERROR_NO_MULTIDIM:
+      ereport(ERROR, errmsg("support for multidimensional arrays is not implemented"));
+      break;
   }
 }

@@ -113,7 +113,7 @@ plmustache_call_info build_call_info(Oid function_oid, __attribute__((unused)) F
   return (plmustache_call_info){proc_tuple, prosrc, numargs, argtypes, argnames, fcinfo->args};
 }
 
-static plmustache_param *build_params(plmustache_call_info call_info) {
+static plmustache_param *build_params(plmustache_call_info call_info, plmustache_obs_handler observer) {
   plmustache_param *params = palloc0(sizeof(plmustache_param) * call_info.numargs);
 
   for (size_t i = 0; i < call_info.numargs; i++) {
@@ -140,7 +140,7 @@ static plmustache_param *build_params(plmustache_call_info call_info) {
         ArrayIterator array_iterator = array_create_iterator(array, 0, NULL);
         int           arr_ndim       = ARR_NDIM(array);
         int           arr_length     = ArrayGetNItems(arr_ndim, ARR_DIMS(array));
-        if (arr_ndim > 1) ereport(ERROR, errmsg("support for multidimensional arrays is not implemented"));
+        if (arr_ndim > 1) observer((plmustache_observation){ERROR_NO_MULTIDIM});
 
         if (arr_length > 0) {
           Datum value;
@@ -162,7 +162,7 @@ static plmustache_param *build_params(plmustache_call_info call_info) {
   return params;
 }
 
-plmustache_ctx build_mustache_ctx(plmustache_call_info call_info) {
+plmustache_ctx build_mustache_ctx(plmustache_call_info call_info, plmustache_obs_handler observer) {
   plmustache_ctx ctx = {0};
 
   // remove the newlines from the start and the end of the function body
@@ -170,7 +170,7 @@ plmustache_ctx build_mustache_ctx(plmustache_call_info call_info) {
 
   if (call_info.numargs > 0) {
     ctx.num_params = call_info.numargs;
-    ctx.params     = build_params(call_info);
+    ctx.params     = build_params(call_info, observer);
   }
 
   return ctx;
