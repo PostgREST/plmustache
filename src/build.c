@@ -67,17 +67,12 @@ struct mustach_itf plmustache_mustach_itf = {
 
 };
 
-static char *datum_to_cstring(Datum datum, Oid typeoid, plmustache_obs_handler observer) {
-  HeapTuple typetuple = SearchSysCache(TYPEOID, ObjectIdGetDatum(typeoid), 0, 0, 0);
-  if (!HeapTupleIsValid(typetuple)) observer((plmustache_observation){ERROR_NO_TYPE_OID, .error_type_oid = typeoid});
+static char *datum_to_cstring(Datum datum, Oid typeoid) {
+  Oid  out_func;
+  bool is_varlena;
+  getTypeOutputInfo(typeoid, &out_func, &is_varlena);
 
-  Form_pg_type pg_type_entry = (Form_pg_type)GETSTRUCT(typetuple);
-
-  Datum ret = OidFunctionCall1(pg_type_entry->typoutput, datum);
-
-  ReleaseSysCache(typetuple);
-
-  return DatumGetCString(ret);
+  return OidOutputFunctionCall(out_func, datum);
 }
 
 plmustache_call_info build_call_info(Oid function_oid, __attribute__((unused)) FunctionCallInfo fcinfo, plmustache_obs_handler observer) {
@@ -128,7 +123,7 @@ static plmustache_param *build_params(plmustache_call_info call_info, plmustache
       params[i].enters_section = false;
       params[i].is_array       = false;
     } else {
-      params[i].prm_value = datum_to_cstring(arg.value, call_info.argtypes[i], ereporter);
+      params[i].prm_value = datum_to_cstring(arg.value, call_info.argtypes[i]);
       if (arg_type == BOOLOID)
         params[i].enters_section = DatumGetBool(arg.value);
       else
@@ -150,7 +145,7 @@ static plmustache_param *build_params(plmustache_call_info call_info, plmustache
           params[i].prm_arr        = palloc0(sizeof(char *) * arr_length);
 
           while (array_iterate(array_iterator, &value, &isnull)) {
-            params[i].prm_arr[j] = isnull ? NULL : datum_to_cstring(value, array_elem_type, ereporter);
+            params[i].prm_arr[j] = isnull ? NULL : datum_to_cstring(value, array_elem_type);
             j++;
           }
         } else

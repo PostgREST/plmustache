@@ -51,9 +51,6 @@ void ereporter(plmustache_observation o) {
     case ERROR_NO_DO_BLOCKS:
       ereport(ERROR, errmsg("plmustache doesn't allow DO blocks"));
       break;
-    case ERROR_NO_TYPE_OID:
-      ereport(ERROR, errmsg("could not find type with oid %u", o.error_type_oid));
-      break;
     case ERROR_MUSTACH:
       ereport(ERROR, errmsg("plmustache template processing failed: %s", mustach_strerror(o.error_mustach_code)));
       break;
