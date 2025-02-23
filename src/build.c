@@ -166,7 +166,7 @@ plmustache_ctx build_mustache_ctx(plmustache_call_info call_info, plmustache_obs
   plmustache_ctx ctx = {0};
 
   // remove the newlines from the start and the end of the function body
-  ctx.template = TextDatumGetCString(DirectFunctionCall2(btrim, call_info.prosrc, CStringGetTextDatum("\n")));
+  ctx.tpl = TextDatumGetCString(DirectFunctionCall2(btrim, call_info.prosrc, CStringGetTextDatum("\n")));
 
   if (call_info.numargs > 0) {
     ctx.num_params = call_info.numargs;
@@ -178,7 +178,7 @@ plmustache_ctx build_mustache_ctx(plmustache_call_info call_info, plmustache_obs
 
 plmustache_ctx free_plmustache_ctx(plmustache_ctx ctx) {
   if (ctx.params) pfree(ctx.params);
-  if (ctx.template) pfree(ctx.template);
+  if (ctx.tpl) pfree(ctx.tpl);
   ctx = (plmustache_ctx){0};
   return ctx;
 }

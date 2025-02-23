@@ -6,12 +6,12 @@
 #include "observation.h"
 
 typedef struct {
+  bool   enters_section;
+  bool   is_array;
+  size_t prm_arr_length;
   char  *prm_name;
   char  *prm_value;
   char **prm_arr;
-  size_t prm_arr_length;
-  bool   enters_section;
-  bool   is_array;
 } plmustache_param;
 
 typedef struct {
@@ -20,7 +20,7 @@ typedef struct {
   char             *section_key;
   size_t            section_idx;
   size_t            section_arr_length;
-  char *template;
+  char             *tpl;
 } plmustache_ctx;
 
 typedef struct {

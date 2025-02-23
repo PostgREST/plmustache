@@ -16,7 +16,7 @@ Datum plmustache_handler(PG_FUNCTION_ARGS) {
 
   char  *mustache_result;
   size_t mustache_result_size;
-  int    mustach_code = mustach_mem(ctx.template, 0, &plmustache_mustach_itf, &ctx, 0, &mustache_result, &mustache_result_size);
+  int    mustach_code = mustach_mem(ctx.tpl, 0, &plmustache_mustach_itf, &ctx, 0, &mustache_result, &mustache_result_size);
 
   if (mustach_code < 0) {
     ereporter((plmustache_observation){ERROR_MUSTACH, .error_mustach_code = mustach_code});
