@@ -1,9 +1,9 @@
 #ifndef BUILD_H
 #define BUILD_H
 
-#include <mustach/mustach.h>
-#include <postgres.h>
 #include "observation.h"
+
+#include <mustach/mustach.h>
 
 typedef struct {
   bool   enters_section;

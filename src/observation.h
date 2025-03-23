@@ -1,6 +1,8 @@
 #ifndef OBSERVATION_H
 #define OBSERVATION_H
 
+#include "pg_prelude.h"
+
 typedef enum {
 
   ERROR_NO_OID = 1,

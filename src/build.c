@@ -1,10 +1,11 @@
 #include "pg_prelude.h"
-#include "observation.h"
+
 #include "build.h"
+#include "observation.h"
 
 const char DOT = '.';
 
-static bool is_implicit_iterator(const char *str){
+static bool is_implicit_iterator(const char *str) {
   return str[0] == DOT;
 }
 
