@@ -1,17 +1,7 @@
-## Our variables
-EXTENSION = plmustache
-EXTVERSION = 0.1
-SED ?= sed
+SRC_DIR = src
+BUILD_DIR ?= build
 
-## PGXS variables
-PG_CONFIG = pg_config
-PGXS := $(shell $(PG_CONFIG) --pgxs)
-
-MODULE_big = $(EXTENSION)
-SRC = $(wildcard src/*.c)
-OBJS = $(patsubst src/%.c, src/%.o, $(SRC))
-SHLIB_LINK = -lmustach
-
+# the `-Wno`s quiet C90 warnings
 PG_CFLAGS = -std=c11 -Wextra -Wall -Werror \
 	-Wno-declaration-after-statement \
 	-Wno-vla \
@@ -21,20 +11,49 @@ ifeq ($(COVERAGE), 1)
 PG_CFLAGS += --coverage
 endif
 
+EXTENSION = plmustache
+EXTVERSION = 0.1
+SED ?= sed
+
+DATA = $(wildcard sql/*--*.sql)
+
+EXTRA_CLEAN = sql/$(EXTENSION)--$(EXTVERSION).sql $(EXTENSION).control
+
 TESTS = $(wildcard test/sql/*.sql)
 REGRESS = $(patsubst test/sql/%.sql,%,$(TESTS))
 REGRESS_OPTS = --inputdir=test
 
-DATA = $(wildcard *--*.sql)
+MODULE_big = $(EXTENSION)
+SRC = $(wildcard $(SRC_DIR)/*.c)
+OBJS = $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(SRC))
 
-EXTRA_CLEAN = $(EXTENSION)--$(EXTVERSION).sql $(EXTENSION).control
+PG_CONFIG = pg_config
+SHLIB_LINK = -lmustach
 
-all: $(EXTENSION)--$(EXTVERSION).sql $(EXTENSION).control
+# Find <curl/curl.h> from system headers
+PG_CPPFLAGS := $(CPPFLAGS) -DEXTVERSION=\"$(EXTVERSION)\"
 
-$(EXTENSION)--$(EXTVERSION).sql: sql/$(EXTENSION).sql
+build: $(BUILD_DIR)/$(EXTENSION).so $(BUILD_DIR)/$(EXTENSION)--$(EXTVERSION).sql $(BUILD_DIR)/$(EXTENSION).control
+
+$(BUILD_DIR)/.gitignore:
+	mkdir -p $(BUILD_DIR)
+	echo "*" > $(BUILD_DIR)/.gitignore
+
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c $(BUILD_DIR)/.gitignore
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/$(EXTENSION)--$(EXTVERSION).sql: sql/$(EXTENSION).sql
 	cp $< $@
 
-$(EXTENSION).control:
+$(BUILD_DIR)/$(EXTENSION).control:
 	$(SED) "s/@EXTVERSION@/$(EXTVERSION)/g" $(EXTENSION).control.in > $@
 
+$(BUILD_DIR)/$(EXTENSION).so: $(EXTENSION).so
+	mv $? $@
+
+PGXS := $(shell $(PG_CONFIG) --pgxs)
 include $(PGXS)
+
+.PHONY: test
+test:
+	make installcheck
