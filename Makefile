@@ -33,19 +33,19 @@ SHLIB_LINK = -lmustach
 # Find <curl/curl.h> from system headers
 PG_CPPFLAGS := $(CPPFLAGS) -DEXTVERSION=\"$(EXTVERSION)\"
 
-build: $(BUILD_DIR)/$(EXTENSION).so $(BUILD_DIR)/$(EXTENSION)--$(EXTVERSION).sql $(BUILD_DIR)/$(EXTENSION).control
+build: $(BUILD_DIR)/$(EXTENSION).so $(BUILD_DIR)/extension/$(EXTENSION)--$(EXTVERSION).sql $(BUILD_DIR)/extension/$(EXTENSION).control
 
 $(BUILD_DIR)/.gitignore:
-	mkdir -p $(BUILD_DIR)
+	mkdir -p $(BUILD_DIR)/extension
 	echo "*" > $(BUILD_DIR)/.gitignore
 
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c $(BUILD_DIR)/.gitignore
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
-$(BUILD_DIR)/$(EXTENSION)--$(EXTVERSION).sql: sql/$(EXTENSION).sql
+$(BUILD_DIR)/extension/$(EXTENSION)--$(EXTVERSION).sql: sql/$(EXTENSION).sql
 	cp $< $@
 
-$(BUILD_DIR)/$(EXTENSION).control:
+$(BUILD_DIR)/extension/$(EXTENSION).control: $(EXTENSION).control.in
 	$(SED) "s/@EXTVERSION@/$(EXTVERSION)/g" $(EXTENSION).control.in > $@
 
 $(BUILD_DIR)/$(EXTENSION).so: $(EXTENSION).so
