@@ -6,6 +6,7 @@ results/
 *.bc
 *.gcda
 *.gcno
+*.swp
 tags
 plmustache.control
 plmustache--*.sql
