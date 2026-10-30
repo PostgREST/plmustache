@@ -1,7 +1,7 @@
 with import (builtins.fetchTarball {
-  name = "25.05-pre";
-  url = "https://github.com/NixOS/nixpkgs/archive/refs/tags/25.05-pre.tar.gz";
-  sha256 = "sha256:0b96wqvk3hs98dhfrmdhqmx9ibac4kjpanpd1pig19jaglanqnxr";
+  name = "26.05";
+  url = "https://github.com/NixOS/nixpkgs/archive/refs/tags/26.05.tar.gz";
+  sha256 = "sha256:0am8xx09fx5yf2p0wb001v0jx1g5hrfb76h4r37xph378jgk7pcr";
 }) {};
 let
   style =
