@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        pg-version: ['14', '15', '16', '17']
+        pg-version: ['14', '15', '16', '17', '18']
 
     # TODO: Integrate renovate-bot to update action versions
     steps:
@@ -52,7 +52,7 @@ jobs:
 
     strategy:
       matrix:
-        pg-version: ['17']
+        pg-version: ['18']
 
     steps:
       - uses: actions/checkout@v4
