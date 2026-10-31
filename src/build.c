@@ -3,7 +3,7 @@
 #include "build.h"
 #include "observation.h"
 
-const char DOT = '.';
+#define DOT '.'
 
 static bool is_implicit_iterator(const char *str) {
   return str[0] == DOT;
